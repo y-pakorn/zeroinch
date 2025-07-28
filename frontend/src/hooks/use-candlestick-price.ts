@@ -1,8 +1,6 @@
-import { QueryOptions, useQuery } from "@tanstack/react-query"
+import { QueryOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
 import axios from "axios"
 import { Address } from "viem"
-
-import { chain } from "@/config/chain"
 
 export interface ICandlestickPrice {
   time: number
@@ -20,16 +18,17 @@ export const useCandlestickPrice = ({
 }: {
   base: Address
   quote: Address
-  interval?: 300 | 900 | 3600 | 14400
-  queryOptions?: QueryOptions<ICandlestickPrice[]>
+  interval?: 300 | 900 | 3600
+  queryOptions?: Partial<UseQueryOptions<ICandlestickPrice[]>>
 }) => {
   return useQuery({
-    queryKey: ["candlestick-price", base, quote],
+    queryKey: ["candlestick-price", base, quote, interval],
     queryFn: async () => {
-      const url = `/api/candlestick?base=${base}&quote=${quote}`
+      const url = `/api/candlestick?base=${base}&quote=${quote}&interval=${interval}`
       const { data } = await axios.get(url)
       return data
     },
+    staleTime: 1000 * 60, // 1 minute
     ...queryOptions,
   })
 }
