@@ -1,10 +1,9 @@
-import "@rainbow-me/rainbowkit/styles.css"
-
 import { getDefaultConfig } from "@rainbow-me/rainbowkit"
-import { base } from "viem/chains"
 import { cookieStorage, createStorage } from "wagmi"
 
 import { env } from "@/env.mjs"
+
+import { chain } from "./chain"
 
 export const web3Config = getDefaultConfig({
   appName: "ZeroInch",
@@ -12,6 +11,6 @@ export const web3Config = getDefaultConfig({
   storage: createStorage({
     storage: cookieStorage,
   }),
-  chains: [base],
+  chains: [chain],
   ssr: true,
 })

@@ -1,13 +1,26 @@
 "use client"
 
 import { darkTheme, RainbowKitProvider } from "@rainbow-me/rainbowkit"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { base } from "viem/chains"
-import { cookieToInitialState, State, WagmiProvider } from "wagmi"
+import { QueryClient } from "@tanstack/react-query"
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
+import { State, WagmiProvider } from "wagmi"
 
+import { chain } from "@/config/chain"
 import { web3Config } from "@/config/web3"
+import { createIDBPersister } from "@/lib/persister"
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      experimental_prefetchInRender: true,
+      staleTime: 1000 * 1, // default to 2s instead of 0
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
+const persister = createIDBPersister()
 
 export function Providers({
   children,
@@ -18,11 +31,14 @@ export function Providers({
 }) {
   return (
     <WagmiProvider config={web3Config} initialState={initialState}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider initialChain={base} theme={darkTheme()}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister }}
+      >
+        <RainbowKitProvider initialChain={chain} theme={darkTheme()}>
           {children}
         </RainbowKitProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </WagmiProvider>
   )
 }

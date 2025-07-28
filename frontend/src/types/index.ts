@@ -1,4 +1,4 @@
-import type { Hex } from "viem"
+import type { Address, Hex } from "viem"
 
 export interface IAccount {
   seed: Hex
@@ -10,7 +10,7 @@ export interface Note {
 }
 
 export interface IToken {
-  address: Hex
+  address: Address
   chainId: number
   symbol: string
   name: string
