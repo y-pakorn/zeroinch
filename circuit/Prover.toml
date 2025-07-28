@@ -1,0 +1,61 @@
+included_asset = ["", ""]
+merkle_root = ""
+nullifier = ["", ""]
+order_hash = ["", "", ""]
+precomp_secret = ["", "", "", "", "", "", "", "", "", ""]
+
+[[inclusion_proof]]
+index = ""
+path = ["", "", "", "", "", "", "", "", "", ""]
+
+[[inclusion_proof]]
+index = ""
+path = ["", "", "", "", "", "", "", "", "", ""]
+
+[[input_note]]
+amount = ""
+asset_address = ""
+
+[input_note.secret]
+nonce = ""
+secret = ""
+
+[[input_note]]
+amount = ""
+asset_address = ""
+
+[input_note.secret]
+nonce = ""
+secret = ""
+
+[[output_note]]
+amount = ""
+asset_address = ""
+
+[output_note.secret]
+nonce = ""
+secret = ""
+
+[[output_note]]
+amount = ""
+asset_address = ""
+
+[output_note.secret]
+nonce = ""
+secret = ""
+
+[[public_asset]]
+amount = ""
+asset_address = ""
+
+[public_asset.secret]
+nonce = ""
+secret = ""
+
+[[public_asset]]
+amount = ""
+asset_address = ""
+
+[public_asset.secret]
+nonce = ""
+secret = ""
