@@ -1,17 +1,22 @@
 import "@/styles/globals.css"
+import "@rainbow-me/rainbowkit/styles.css"
 
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
+import { headers } from "next/headers"
 import { GoogleAnalytics } from "@next/third-parties/google"
 import { Analytics } from "@vercel/analytics/next"
 
 import { env } from "@/env.mjs"
 import { siteConfig } from "@/config/site"
+import { cookieToInitialState } from "@/lib/cookie"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/sonner"
+import { Providers } from "@/components/providers"
 import { ThemeProvider } from "@/components/theme-provider"
 
-const inter = Inter({ subsets: ["latin"] })
+const sans = Geist({ subsets: ["latin"], variable: "--font-sans" })
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 interface RootLayoutProps {
   children: React.ReactNode
@@ -67,25 +72,28 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const cookie = (await headers()).get("cookie")
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
         className={cn(
-          "bg-background min-h-screen antialiased",
-          inter.className
+          "bg-background min-h-screen font-sans tracking-tighter antialiased",
+          sans.variable,
+          mono.variable
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <Providers initialState={cookieToInitialState("wagmi", cookie)}>
+          <ThemeProvider
+            attribute="class"
+            forcedTheme="dark"
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </Providers>
       </body>
       {env.NEXT_PUBLIC_GA_ID && (
         <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
