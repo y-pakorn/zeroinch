@@ -6,6 +6,7 @@ import { Address } from "viem"
 
 import { PlaceOrderFormData, placeOrderFormSchema } from "@/lib/schema"
 import Navbar from "@/components/navbar"
+import OrderListCard from "@/components/order-list-card"
 import PlaceOrderCard from "@/components/place-order-card"
 import PlaceOrderChartCard from "@/components/place-order-chart-card"
 import { PlaceOrderProvider } from "@/components/place-order-provider"
@@ -43,7 +44,10 @@ export default function Home() {
         >
           <Navbar />
           <div className="flex flex-1 justify-center gap-4">
-            <PlaceOrderChartCard />
+            <div className="flex w-full flex-col gap-4">
+              <PlaceOrderChartCard />
+              <OrderListCard />
+            </div>
             <PlaceOrderCard />
           </div>
         </main>

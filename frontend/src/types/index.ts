@@ -26,6 +26,7 @@ export interface IToken {
 }
 
 export interface ILimitOrder {
+  id: Hex
   type: "limit"
   baseTokenA: Address
   quoteTokenA: Address
@@ -41,9 +42,18 @@ export interface ILimitOrder {
     txHash: Hex
     actualQuoteTokenAmount: number
   }
+  claimed?: {
+    at: number
+    txHash: Hex
+  }
+  cancelled?: {
+    at: number
+    txHash: Hex
+  }
 }
 
 export interface ITwapOrder {
+  id: Hex
   type: "twap"
   baseTokenA: Address
   quoteTokenA: Address
@@ -60,4 +70,12 @@ export interface ITwapOrder {
     txHash: Hex
     quoteTokenAmount: number
   }[]
+  claimed?: {
+    at: number
+    txHash: Hex
+  }[]
+  cancelled?: {
+    at: number
+    txHash: Hex
+  }
 }

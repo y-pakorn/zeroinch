@@ -17,6 +17,12 @@ export const formatter = {
       .local()
       .format("D/M H:mm")
   },
+  timeRelative: (value: number) => {
+    return dayjs
+      .utc(value * 1000)
+      .local()
+      .fromNow()
+  },
   valueReadable: (value: number | string) => {
     return numbro(value).format({
       mantissa: 2,

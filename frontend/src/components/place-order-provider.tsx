@@ -8,6 +8,7 @@ import {
 import BigNumber from "bignumber.js"
 import { useFormContext } from "react-hook-form"
 import { Address } from "viem"
+import { generatePrivateKey } from "viem/accounts"
 
 import { tokens } from "@/config/token"
 import { PlaceOrderFormData } from "@/lib/schema"
@@ -75,39 +76,42 @@ export const PlaceOrderProvider = ({
   }, [errors, isSubmitting, isValid])
 
   const { addOrder } = useAccountStore()
-  const handleSubmit = useCallback((data: PlaceOrderFormData) => {
-    if (data.type === "limit") {
-      addOrder({
-        type: "limit",
-        baseTokenA: baseTokenA,
-        quoteTokenA: quoteTokenA,
-        baseTokenAmount: data.baseTokenAmount,
-        minQuoteTokenAmount: data.quoteTokenAmount,
-        marketPrice: marketPrice.toNumber(),
-        value: data.baseTokenAmount * (prices?.[baseTokenA] || 0),
-        createdAt: Date.now(),
-        expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
-        diffPercentage: data.diffPercentage,
-        filled: undefined,
-      })
-    }
+  const handleSubmit = useCallback(
+    (data: PlaceOrderFormData) => {
+      if (data.type === "limit") {
+        addOrder({
+          id: generatePrivateKey(),
+          type: "limit",
+          baseTokenA: data.baseTokenA,
+          quoteTokenA: data.quoteTokenA,
+          baseTokenAmount: data.baseTokenAmount,
+          minQuoteTokenAmount: data.quoteTokenAmount,
+          marketPrice: marketPrice.toNumber(),
+          value: data.baseTokenAmount * (prices?.[data.baseTokenA] || 0),
+          createdAt: Date.now(),
+          expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
+          diffPercentage: data.diffPercentage,
+        })
+      }
 
-    if (data.type === "twap") {
-      addOrder({
-        type: "twap",
-        baseTokenA: baseTokenA,
-        quoteTokenA: quoteTokenA,
-        baseTokenAmount: data.baseTokenAmount,
-        marketPrice: marketPrice.toNumber(),
-        value: data.baseTokenAmount * (prices?.[baseTokenA] || 0),
-        createdAt: Date.now(),
-        endAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
-        numberOfParts: data.numberOfParts,
-        priceProtection: data.diffPercentage,
-        filled: undefined,
-      })
-    }
-  }, [])
+      if (data.type === "twap") {
+        addOrder({
+          id: generatePrivateKey(),
+          type: "twap",
+          baseTokenA: data.baseTokenA,
+          quoteTokenA: data.quoteTokenA,
+          baseTokenAmount: data.baseTokenAmount,
+          marketPrice: marketPrice.toNumber(),
+          value: data.baseTokenAmount * (prices?.[data.baseTokenA] || 0),
+          createdAt: Date.now(),
+          endAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
+          numberOfParts: data.numberOfParts,
+          priceProtection: data.diffPercentage,
+        })
+      }
+    },
+    [prices, marketPrice]
+  )
 
   return (
     <PlaceOrderContext.Provider

@@ -8,6 +8,7 @@ import { IAccount, IOrder } from "@/types"
 interface IAccountStore {
   account: IAccount
   addOrder: (order: IOrder) => void
+  cancelOrder: (id: Hex) => void
 }
 
 export const useAccountStore = create<IAccountStore>()(
@@ -22,9 +23,27 @@ export const useAccountStore = create<IAccountStore>()(
         const account = get().account
         set({ account: { ...account, orders: [...account.orders, order] } })
       },
+      cancelOrder: (id: Hex) => {
+        set(({ account }) => ({
+          account: {
+            ...account,
+            orders: account.orders.map((order) =>
+              order.id === id
+                ? {
+                    ...order,
+                    cancelled: {
+                      at: Date.now(),
+                      txHash: generatePrivateKey(),
+                    },
+                  }
+                : order
+            ),
+          },
+        }))
+      },
     }),
     {
-      name: "account-storage",
+      name: `account-storage-v0.0.01`,
     }
   )
 )
