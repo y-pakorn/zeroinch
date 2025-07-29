@@ -12,7 +12,7 @@ export function TransparentInput({
     <Input
       {...props}
       className={cn(
-        "border-none bg-transparent p-0 focus-visible:ring-0 dark:bg-transparent",
+        "rounded-none border-none bg-transparent p-0 focus-visible:ring-0 dark:bg-transparent",
         className
       )}
     />

@@ -1,14 +1,17 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import BigNumber from "bignumber.js"
 import {
   ArrowDown,
+  ArrowUp,
   ArrowUpDown,
   ChevronDown,
   Loader2,
   Wallet,
 } from "lucide-react"
+import { useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
 import {
   Area,
@@ -19,6 +22,7 @@ import {
   YAxis,
 } from "recharts"
 import { Address } from "viem"
+import { z } from "zod"
 
 import { images } from "@/config/image"
 import { tokens } from "@/config/token"
@@ -26,13 +30,7 @@ import { formatter } from "@/lib/formatter"
 import { useCandlestickPrice } from "@/hooks/use-candlestick-price"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
   ChartContainer,
   ChartTooltip,
@@ -42,22 +40,70 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { SelectTokenDialog } from "@/components/select-token-dialog"
 import { TransparentInput } from "@/components/transparent-input"
 
+// Zod schema for form validation
+const formSchema = z.object({
+  baseTokenA: z.custom<Address>(
+    (val) => typeof val === "string" && /^0x[a-fA-F0-9]{40}$/.test(val),
+    { message: "Invalid Ethereum address" }
+  ),
+  baseTokenAmount: z.number().min(0, "Amount must be positive"),
+  quoteTokenA: z.custom<Address>(
+    (val) => typeof val === "string" && /^0x[a-fA-F0-9]{40}$/.test(val),
+    { message: "Invalid Ethereum address" }
+  ),
+  quoteTokenAmount: z.number().min(0, "Amount must be positive"),
+  selectedInterval: z.union([z.literal(300), z.literal(900), z.literal(3600)]),
+  diffPercentage: z.number(),
+  inversed: z.boolean(),
+  expiry: z.number().positive("Expiry must be positive"),
+})
+
+type FormData = z.infer<typeof formSchema>
+
 export default function Home() {
-  const [baseTokenA, setBaseTokenA] = useState<Address>(
-    "0x4200000000000000000000000000000000000006"
-  )
-  const [baseTokenAmount, setBaseTokenAmount] = useState<number>(0)
+  // Form setup with default values
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      baseTokenA: "0x4200000000000000000000000000000000000006" as Address,
+      baseTokenAmount: 0,
+      quoteTokenA: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" as Address,
+      quoteTokenAmount: 0,
+      selectedInterval: 900,
+      diffPercentage: 0,
+      inversed: false,
+      expiry: 24,
+    },
+  })
+
+  const {
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = form
+
+  // Watch form values for reactive calculations
+  const {
+    baseTokenA,
+    baseTokenAmount,
+    quoteTokenA,
+    quoteTokenAmount,
+    selectedInterval,
+    diffPercentage,
+    inversed,
+    expiry,
+  } = watch()
+
+  // UI state (keeping as useState since they're not part of form data)
+  const [selectBaseTokenDialogOpen, setSelectBaseTokenDialogOpen] =
+    useState(false)
+  const [selectQuoteTokenDialogOpen, setSelectQuoteTokenDialogOpen] =
+    useState(false)
+
+  // Get token objects
   const baseToken = tokens[baseTokenA]!
-
-  const [quoteTokenA, setQuoteTokenA] = useState<Address>(
-    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
-  )
-  const [quoteTokenAmount, setQuoteTokenAmount] = useState<number>(0)
   const quoteToken = tokens[quoteTokenA]!
-
-  const [selectedInterval, setSelectedInterval] = useState<300 | 900 | 3600>(
-    900
-  )
 
   const { data: candlestickPrice, isLoading: isLoadingCandlestickPrice } =
     useCandlestickPrice({
@@ -72,37 +118,106 @@ export default function Home() {
     },
   })
 
-  const [selectBaseTokenDialogOpen, setSelectBaseTokenDialogOpen] =
-    useState(false)
-  const [selectQuoteTokenDialogOpen, setSelectQuoteTokenDialogOpen] =
-    useState(false)
-
   const marketPrice = useMemo(
     () =>
       new BigNumber(prices?.[baseTokenA] || 0).div(prices?.[quoteTokenA] || 1),
     [prices, baseTokenA, quoteTokenA]
   )
 
-  // -1 to infinity, 0 is the market price, 1 is 100% higher, -1 is 100% lower
-  const [diffPercentage, setDiffPercentage] = useState(0)
-  // not inversed = base token is the base, inversed = quote token is the base
-  const [inversed, setInversed] = useState(false)
+  // Calculate diffed prices
   const diffedPriceBase = marketPrice.multipliedBy(1 + diffPercentage)
   const diffedPrice = !inversed
     ? marketPrice.multipliedBy(1 + diffPercentage)
     : marketPrice.pow(-1).multipliedBy(1 + diffPercentage)
 
+  // Handle interdependent calculations
   useEffect(() => {
-    // if diffPercentage is changed, we need to recalculate the base token amount
-    const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
-    const newBaseTokenAmount = newPrice.pow(-1).multipliedBy(quoteTokenAmount)
-    setBaseTokenAmount(newBaseTokenAmount.toNumber())
+    // When diffPercentage changes, recalculate base token amount
+    if (quoteTokenAmount > 0) {
+      const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
+      const newBaseTokenAmount = newPrice.pow(-1).multipliedBy(quoteTokenAmount)
+      setValue("baseTokenAmount", newBaseTokenAmount.toNumber())
+    }
   }, [diffPercentage])
 
-  const [expiry, setExpiry] = useState(24)
+  useEffect(() => {
+    if (baseTokenAmount > 0) {
+      const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
+      const newQuoteTokenAmount = newPrice.multipliedBy(baseTokenAmount)
+      setValue("quoteTokenAmount", newQuoteTokenAmount.toNumber())
+    }
+  }, [prices])
+
+  // Helper function to handle amount changes
+  const handleBaseAmountChange = (
+    value: number | undefined,
+    source: string
+  ) => {
+    if (value && source === "event") {
+      setValue("baseTokenAmount", value || 0)
+      const quoteAmount = diffedPrice.multipliedBy(value).toNumber()
+      setValue("quoteTokenAmount", quoteAmount)
+    }
+    if (value === undefined) {
+      setValue("quoteTokenAmount", 0)
+    }
+  }
+
+  const handleQuoteAmountChange = (
+    value: number | undefined,
+    source: string
+  ) => {
+    if (value && source === "event") {
+      setValue("quoteTokenAmount", value || 0)
+      const baseAmount = diffedPrice.pow(-1).multipliedBy(value).toNumber()
+      setValue("baseTokenAmount", baseAmount)
+    }
+    if (value === undefined) {
+      setValue("baseTokenAmount", 0)
+    }
+  }
+
+  // Helper function to handle token swapping
+  const handleTokenSwap = () => {
+    const currentValues = getValues()
+    setValue("baseTokenA", currentValues.quoteTokenA)
+    setValue("quoteTokenA", currentValues.baseTokenA)
+    setValue("baseTokenAmount", currentValues.quoteTokenAmount)
+    setValue("quoteTokenAmount", currentValues.baseTokenAmount)
+  }
+
+  // Helper function to handle price input changes
+  const handlePriceChange = (value: number | undefined, source: string) => {
+    if (source === "event") {
+      if (!value) {
+        setValue("diffPercentage", 0)
+        return
+      }
+
+      // Calculate the percentage difference from market price
+      const price = !inversed ? marketPrice : marketPrice.pow(-1)
+      const newPercentage = new BigNumber(value)
+        .minus(price)
+        .div(price)
+        .toNumber()
+
+      setValue("diffPercentage", newPercentage)
+    }
+  }
+
+  const baseTokenValue = useMemo(() => {
+    return (prices?.[baseTokenA] || 0) * baseTokenAmount
+  }, [baseTokenA, baseTokenAmount, prices])
 
   return (
-    <main className="container min-h-screen flex-col space-y-4 py-8">
+    <main
+      className="container min-h-screen flex-col space-y-4 py-8"
+      style={
+        {
+          "--main-width": "400px",
+        } as React.CSSProperties
+      }
+    >
       <div className="font-mono font-semibold">ZeroInch</div>
       <div className="flex flex-1 items-center justify-center gap-4">
         <Card className="w-full">
@@ -130,7 +245,10 @@ export default function Home() {
               type="single"
               value={selectedInterval.toString()}
               onValueChange={(value) => {
-                setSelectedInterval(parseInt(value) as 300 | 900 | 3600)
+                setValue(
+                  "selectedInterval",
+                  parseInt(value) as 300 | 900 | 3600
+                )
               }}
             >
               {[300, 900, 3600].map((interval) => (
@@ -263,20 +381,17 @@ export default function Home() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <div className="w-[400px] shrink-0 space-y-2">
+        <div className="w-[var(--main-width)] shrink-0 space-y-2">
+          <div className="text-2xl font-semibold">
+            <span>Limit Order</span>
+            <span className="text-muted-foreground/80">/TWAP</span>
+          </div>
           <Card className="relative">
             <Button
               className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 translate-y-[calc(50%+0.25rem)]"
-              size="icon"
-              variant="secondary"
-              onClick={() => {
-                const temp = baseTokenA
-                const tempAmount = baseTokenAmount
-                setBaseTokenA(quoteTokenA)
-                setQuoteTokenA(temp)
-                setBaseTokenAmount(quoteTokenAmount)
-                setQuoteTokenAmount(tempAmount)
-              }}
+              size="iconXs"
+              variant="default"
+              onClick={handleTokenSwap}
             >
               <ArrowDown />
             </Button>
@@ -290,9 +405,10 @@ export default function Home() {
                   onOpenChange={setSelectBaseTokenDialogOpen}
                   excludeTokens={[baseTokenA, quoteTokenA]}
                   onSelect={(token) => {
-                    setBaseTokenA(token.address)
+                    setValue("baseTokenA", token.address)
                     // recalculate base token amount based on the new token
-                    setBaseTokenAmount(
+                    setValue(
+                      "baseTokenAmount",
                       (baseTokenAmount * (prices?.[baseTokenA] || 0)) /
                         (prices?.[token.address] || 0)
                     )
@@ -306,17 +422,7 @@ export default function Home() {
                   placeholder="0.0"
                   allowNegative={false}
                   onValueChange={(value, { source }) => {
-                    setBaseTokenAmount(value.floatValue || 0)
-                    if (value.floatValue && source === "event") {
-                      const quoteTokenAmount = diffedPrice
-                        .multipliedBy(value.floatValue)
-                        .toNumber()
-                      setQuoteTokenAmount(quoteTokenAmount)
-                    }
-
-                    if (value.floatValue === undefined) {
-                      setQuoteTokenAmount(0)
-                    }
+                    handleBaseAmountChange(value.floatValue, source)
                   }}
                   decimalScale={baseToken.decimals}
                 />
@@ -335,11 +441,12 @@ export default function Home() {
                 </Button>
               </div>
               <div className="flex items-center gap-2">
-                {!!baseTokenAmount && (
+                {!!baseTokenValue && (
                   <div className="text-muted-foreground truncate text-xs">
                     ≈{" "}
                     {formatter.usd(
-                      (prices?.[baseTokenA] || 0) * baseTokenAmount
+                      baseTokenValue,
+                      formatter.decimals(baseTokenValue)
                     )}
                   </div>
                 )}
@@ -352,11 +459,11 @@ export default function Home() {
                     size="2xs"
                     onClick={() => {
                       const balance = 500000
-                      setBaseTokenAmount(balance)
+                      setValue("baseTokenAmount", balance)
                       const quoteTokenAmount = diffedPrice
                         .multipliedBy(balance)
                         .toNumber()
-                      setQuoteTokenAmount(quoteTokenAmount)
+                      setValue("quoteTokenAmount", quoteTokenAmount)
                     }}
                   >
                     Half
@@ -366,11 +473,11 @@ export default function Home() {
                     size="2xs"
                     onClick={() => {
                       const balance = 1000000
-                      setBaseTokenAmount(balance)
+                      setValue("baseTokenAmount", balance)
                       const quoteTokenAmount = diffedPrice
                         .multipliedBy(balance)
                         .toNumber()
-                      setQuoteTokenAmount(quoteTokenAmount)
+                      setValue("quoteTokenAmount", quoteTokenAmount)
                     }}
                   >
                     Max
@@ -390,9 +497,10 @@ export default function Home() {
                   onOpenChange={setSelectQuoteTokenDialogOpen}
                   excludeTokens={[quoteTokenA, baseTokenA]}
                   onSelect={(token) => {
-                    setQuoteTokenA(token.address)
+                    setValue("quoteTokenA", token.address)
                     // recalculate quote token amount based on the new token
-                    setQuoteTokenAmount(
+                    setValue(
+                      "quoteTokenAmount",
                       (baseTokenAmount * (prices?.[baseTokenA] || 0)) /
                         (prices?.[token.address] || 0)
                     )
@@ -406,18 +514,7 @@ export default function Home() {
                   placeholder="0.0"
                   allowNegative={false}
                   onValueChange={(value, { source }) => {
-                    setQuoteTokenAmount(value.floatValue || 0)
-                    if (value.floatValue && source === "event") {
-                      const baseTokenAmount = diffedPrice
-                        .pow(-1)
-                        .multipliedBy(value.floatValue)
-                        .toNumber()
-                      setBaseTokenAmount(baseTokenAmount)
-                    }
-
-                    if (value.floatValue === undefined) {
-                      setBaseTokenAmount(0)
-                    }
+                    handleQuoteAmountChange(value.floatValue, source)
                   }}
                   decimalScale={quoteToken.decimals}
                 />
@@ -436,18 +533,12 @@ export default function Home() {
                 </Button>
               </div>
               <div className="flex items-center gap-2">
-                {!!quoteTokenAmount && (
-                  <div className="text-muted-foreground truncate text-xs">
-                    ≈{" "}
-                    {formatter.usd(
-                      (prices?.[quoteTokenA] || 0) * quoteTokenAmount
-                    )}
-                  </div>
-                )}
                 <div className="flex-1" />
-                <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                  <Wallet className="size-3" />
-                  {formatter.valueLocale(1000000)}
+                <div>
+                  <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                    <Wallet className="size-3" />
+                    {formatter.valueLocale(1000000)}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -460,7 +551,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   size="iconXs"
-                  onClick={() => setInversed((i) => !i)}
+                  onClick={() => setValue("inversed", !inversed)}
                 >
                   <ArrowUpDown />
                 </Button>
@@ -474,23 +565,7 @@ export default function Home() {
                   placeholder="0.0"
                   allowNegative={false}
                   onValueChange={(value, { source }) => {
-                    if (source === "event") {
-                      if (!value.floatValue) {
-                        setDiffPercentage(0)
-                        return
-                      }
-
-                      // value is the real price, we need to calculate the percentage
-                      const price = !inversed
-                        ? marketPrice
-                        : marketPrice.pow(-1)
-                      const newPercentage = new BigNumber(value.floatValue)
-                        .minus(price)
-                        .div(price)
-                        .toNumber()
-
-                      setDiffPercentage(newPercentage)
-                    }
+                    handlePriceChange(value.floatValue, source)
                   }}
                   decimalScale={
                     !inversed ? quoteToken.decimals : baseToken.decimals
@@ -551,7 +626,7 @@ export default function Home() {
                       size="xs"
                       onClick={() => {
                         if (item.show) return
-                        setDiffPercentage(item.value)
+                        setValue("diffPercentage", item.value)
                       }}
                     >
                       {item.label}
@@ -587,13 +662,16 @@ export default function Home() {
                   key={item.label}
                   variant={expiry === item.value ? "default" : "outline"}
                   size="xs"
-                  onClick={() => setExpiry(item.value)}
+                  onClick={() => setValue("expiry", item.value)}
                 >
                   {item.label}
                 </Button>
               ))}
             </CardContent>
           </Card>
+          <Button className="w-full" size="lg">
+            Submit Order
+          </Button>
         </div>
       </div>
     </main>

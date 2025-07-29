@@ -34,9 +34,9 @@ export const formatter = {
       trimMantissa: true,
     })
   },
-  usd: (value: number | string) => {
+  usd: (value: number | string, decimals?: number) => {
     return numbro(value).formatCurrency({
-      mantissa: 2,
+      mantissa: decimals ?? 2,
       thousandSeparated: true,
       trimMantissa: true,
       optionalMantissa: true,
