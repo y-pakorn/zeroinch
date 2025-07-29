@@ -75,18 +75,21 @@ fn main(
 ) {
     // check if all input are valid
     for i in 0..2 {
-        // check correct nullifier
-        assert(nullifier[i] == input_note[i].secret.nonce);
-        // note is valid in tree
-        let leaf = note_hasher(input_note[i]);
-        let processed_root =
-            path_processor(leaf, inclusion_proof[i].index, inclusion_proof[i].path);
-        assert(processed_root == merkle_root);
-        // assert note asset is in included_asset in any order
-        assert(
-            (input_note[i].asset_address == included_asset[0])
-                | (input_note[i].asset_address == included_asset[1]),
-        );
+        // skip if input note is empty
+        if input_note[i].amount != 0 {
+            // check correct nullifier
+            assert(nullifier[i] == input_note[i].secret.nonce);
+            // note is valid in tree
+            let leaf = note_hasher(input_note[i]);
+            let processed_root =
+                path_processor(leaf, inclusion_proof[i].index, inclusion_proof[i].path);
+            assert(processed_root == merkle_root);
+            // assert note asset is in included_asset in any order
+            assert(
+                (input_note[i].asset_address == included_asset[0])
+                    | (input_note[i].asset_address == included_asset[1]),
+            );
+        }
     }
 
     let mut sum_asset_1_in = 0u128;
@@ -101,14 +104,16 @@ fn main(
 
     // check if output notes are valid
     for i in 0..2 {
-        // note hash correctly
-        let out_hash = note_hasher(output_note[i]);
-        assert(new_note_hash[i] == out_hash);
-        // asset is in included_asset in any order
-        assert(
-            (output_note[i].asset_address == included_asset[0])
-                | (output_note[i].asset_address == included_asset[1]),
-        );
+        if output_note[i].amount != 0 {
+            // note hash correctly
+            let out_hash = note_hasher(output_note[i]);
+            assert(new_note_hash[i] == out_hash);
+            // asset is in included_asset in any order
+            assert(
+                (output_note[i].asset_address == included_asset[0])
+                    | (output_note[i].asset_address == included_asset[1]),
+            );
+        }
     }
 
     // sum of output
@@ -124,10 +129,17 @@ fn main(
 
     // sum order asset
     for i in 0..2 {
-        if order_asset[i].asset_address == included_asset[0] {
-            sum_asset_1_out += order_asset[i].amount;
-        } else {
-            sum_asset_2_out += order_asset[i].amount;
+        if order_asset[i].amount != 0 {
+            // asset is in included_asset in any order
+            assert(
+                (order_asset[i].asset_address == included_asset[0])
+                    | (order_asset[i].asset_address == included_asset[1]),
+            );
+            if order_asset[i].asset_address == included_asset[0] {
+                sum_asset_1_out += order_asset[i].amount;
+            } else {
+                sum_asset_2_out += order_asset[i].amount;
+            }
         }
     }
 
@@ -157,9 +169,182 @@ fn fake_merkle_proof(input: [Field; 2]) -> ([Merkle_proof; 2], Field) {
 }
 
 #[test]
-fn test_main() {
-    // main(1, 2);
+fn test_tree() {
+    let test1 = 69;
+    let test2 = 420;
 
-    // Uncomment to make test fail
-    // main(1, 1);
+    let tmp = fake_merkle_proof([test1, test2]);
+    let p1 = tmp.0[0];
+    let p2 = tmp.0[1];
+    let root = tmp.1;
+
+    let root1 = path_processor(test1, p1.index, p1.path);
+    assert(root == root1);
+
+    let root2 = path_processor(test2, p2.index, p2.path);
+    assert(root2 == root);
+}
+
+#[test]
+fn test_failed_tree() {
+    let test1 = 69;
+    let test2 = 420;
+
+    let tmp = fake_merkle_proof([test1, test2]);
+    let p1 = tmp.0[0];
+    let p2 = tmp.0[1];
+    let root = tmp.1;
+
+    let root1 = path_processor(test1, p2.index, p1.path);
+    assert(root != root1);
+
+    let root2 = path_processor(test2, p1.index, p2.path);
+    assert(root2 != root);
+
+    let root3 = path_processor(test1, p1.index, p2.path);
+    assert(root != root3);
+
+    let root4 = path_processor(test1, p2.index, p1.path);
+    assert(root != root4);
+}
+
+#[test]
+fn test_simple_note_hash() {
+    let note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 42, nonce: 69 } };
+    let hash = note_hasher(note);
+    assert(
+        hash
+            == poseidon::poseidon2::Poseidon2::hash(
+                [1, 100, poseidon::poseidon2::Poseidon2::hash([42, 69], 2)],
+                3,
+            ),
+    );
+}
+
+#[test]
+fn test_note_in_main() {
+    let test_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 42, nonce: 69 } };
+    let included_asset = [1, 2];
+    let note_hash = note_hasher(test_note);
+    let tmp = fake_merkle_proof([note_hash, note_hash]);
+    let inclusion_proof = tmp.0;
+    let merkle_root = tmp.1;
+    let empty_note =
+        Note { asset_address: 0, amount: 0, secret: Combined_secret { secret: 0, nonce: 0 } };
+    let order_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
+    main(
+        included_asset,
+        merkle_root,
+        [0, 0, 0],
+        [0; 10],
+        [order_note, empty_note],
+        [69, 0],
+        [note_hash, note_hash],
+        [test_note, empty_note],
+        [empty_note, empty_note],
+        inclusion_proof,
+    );
+}
+
+#[test]
+fn test_note_full() {
+    let test_note_1 =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 42, nonce: 69 } };
+    let test_note_2 =
+        Note { asset_address: 2, amount: 50, secret: Combined_secret { secret: 123, nonce: 456 } };
+    let included_asset = [1, 2];
+
+    let test_note_1_hash = note_hasher(test_note_1);
+    let test_note_2_hash = note_hasher(test_note_2);
+
+    let new_note_1 =
+        Note { asset_address: 1, amount: 75, secret: Combined_secret { secret: 2, nonce: 3 } };
+
+    let new_note_2 =
+        Note { asset_address: 2, amount: 35, secret: Combined_secret { secret: 12, nonce: 31 } };
+
+    let new_note_hash_1 = note_hasher(new_note_1);
+    let new_note_hash_2 = note_hasher(new_note_2);
+
+    let tmp = fake_merkle_proof([test_note_1_hash, test_note_2_hash]);
+    let inclusion_proof = tmp.0;
+    let merkle_root = tmp.1;
+
+    let order_note_1 =
+        Note { asset_address: 2, amount: 15, secret: Combined_secret { secret: 0, nonce: 0 } };
+
+    let order_note_2 =
+        Note { asset_address: 1, amount: 25, secret: Combined_secret { secret: 0, nonce: 0 } };
+
+    main(
+        included_asset,
+        merkle_root,
+        [0, 0, 0],
+        [0; 10],
+        [order_note_1, order_note_2],
+        [69, 456],
+        [new_note_hash_1, new_note_hash_2],
+        [test_note_1, test_note_2],
+        [new_note_1, new_note_2],
+        inclusion_proof,
+    );
+}
+
+#[test(should_fail)]
+fn test_note_in_fail_sum() {
+    let test_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 42, nonce: 69 } };
+    let included_asset = [1, 2];
+    let note_hash = note_hasher(test_note);
+    let tmp = fake_merkle_proof([note_hash, note_hash]);
+    let inclusion_proof = tmp.0;
+    let merkle_root = tmp.1;
+    let empty_note =
+        Note { asset_address: 0, amount: 0, secret: Combined_secret { secret: 0, nonce: 0 } };
+    let order_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
+    // too many order
+    main(
+        included_asset,
+        merkle_root,
+        [0, 0, 0],
+        [0; 10],
+        [order_note, order_note],
+        [69, 0],
+        [note_hash, note_hash],
+        [test_note, empty_note],
+        [empty_note, empty_note],
+        inclusion_proof,
+    );
+}
+
+#[test(should_fail)]
+fn test_note_in_fail_wrong_asset() {
+    let test_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 42, nonce: 69 } };
+    let included_asset = [3, 2];
+    let note_hash = note_hasher(test_note);
+    let tmp = fake_merkle_proof([note_hash, note_hash]);
+    let inclusion_proof = tmp.0;
+    let merkle_root = tmp.1;
+    let empty_note =
+        Note { asset_address: 0, amount: 0, secret: Combined_secret { secret: 0, nonce: 0 } };
+    let order_note =
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
+    // too many order
+    main(
+        included_asset,
+        merkle_root,
+        [0, 0, 0],
+        [0; 10],
+        [order_note, empty_note],
+        [69, 0],
+        [note_hash, note_hash],
+        [test_note, empty_note],
+        [empty_note, empty_note],
+        inclusion_proof,
+    );
 }
