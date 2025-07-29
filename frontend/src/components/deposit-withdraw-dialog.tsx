@@ -2,7 +2,13 @@ import { useCallback, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useConnectModal } from "@rainbow-me/rainbowkit"
 import BigNumber from "bignumber.js"
-import { ArrowLeftRight, ChevronDown, Loader2, LogOut } from "lucide-react"
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  Loader2,
+  LogOut,
+  Wallet,
+} from "lucide-react"
 import { useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
 import { Address } from "viem"
@@ -10,7 +16,6 @@ import { useAccount, useBalance, useDisconnect, useSwitchAccount } from "wagmi"
 
 import { images } from "@/config/image"
 import { tokens } from "@/config/token"
-import { connections } from "@/config/web3"
 import {
   DepositWithdrawFormData,
   depositWithdrawFormSchema,
@@ -28,7 +33,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog"
-import { FormField, FormItem } from "./ui/form"
 
 export function DepositWithdrawDialog({
   children,
@@ -162,7 +166,8 @@ export function DepositWithdrawDialog({
             {address && (
               <div className="flex items-center gap-2 text-sm font-medium">
                 <div className="shrink-0">Wallet Balance</div>
-                <span className="text-muted-foreground ml-auto truncate">
+                <Wallet className="text-muted-foreground ml-auto size-3.5" />
+                <span className="text-muted-foreground truncate">
                   {!balance ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
@@ -217,7 +222,8 @@ export function DepositWithdrawDialog({
 
             <div className="flex items-center gap-2 text-sm font-medium">
               <div className="shrink-0">Internal Balance</div>
-              <span className="text-muted-foreground ml-auto truncate">
+              <Wallet className="text-muted-foreground ml-auto size-3.5" />
+              <span className="text-muted-foreground truncate">
                 {internalBalances[tokenA] || "0"}
               </span>
             </div>
