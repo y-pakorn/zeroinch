@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react"
-import { useForm, useFormContext } from "react-hook-form"
+import { useFormContext } from "react-hook-form"
 import {
   Area,
   AreaChart,
@@ -37,7 +37,7 @@ export default function PlaceOrderChartCard() {
   const twapLimitLower = marketPrice.multipliedBy(1 - diffPercentage)
 
   return (
-    <Card className="w-full">
+    <Card className="h-min w-full">
       <CardHeader className="flex items-center gap-2 rounded-xl">
         <img
           src={baseToken.logoURI || images.unknown}
@@ -76,7 +76,7 @@ export default function PlaceOrderChartCard() {
           ))}
         </ToggleGroup>
       </CardHeader>
-      <CardContent className="relative">
+      <CardContent className="relative h-fit">
         {isLoadingCandlestickPrice && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="stroke-muted-foreground size-6 animate-spin" />

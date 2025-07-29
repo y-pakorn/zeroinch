@@ -1,24 +1,26 @@
 import { Hex } from "viem"
+import { generatePrivateKey } from "viem/accounts"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-import { IAccount } from "@/types"
+import { IAccount, IOrder } from "@/types"
 
 interface IAccountStore {
-  account: IAccount | null
-  createAccount: (seed: Hex) => void
+  account: IAccount
+  addOrder: (order: IOrder) => void
 }
 
-export const useAccountStore = create()(
+export const useAccountStore = create<IAccountStore>()(
   persist(
     (set, get) => ({
-      account: null,
-      createAccount: (seed: Hex) => {
-        const account: IAccount = {
-          seed,
-          notes: [],
-        }
-        set({ account })
+      account: {
+        seed: generatePrivateKey(),
+        notes: [],
+        orders: [],
+      },
+      addOrder: (order: IOrder) => {
+        const account = get().account
+        set({ account: { ...account, orders: [...account.orders, order] } })
       },
     }),
     {
