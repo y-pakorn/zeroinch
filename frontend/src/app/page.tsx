@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import BigNumber from "bignumber.js"
-import { duration } from "dayjs"
 import {
   ArrowDown,
   ArrowUpDown,
@@ -15,8 +14,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
+  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts"
@@ -25,7 +23,6 @@ import { Address } from "viem"
 import { images } from "@/config/image"
 import { tokens } from "@/config/token"
 import { formatter } from "@/lib/formatter"
-import { cn } from "@/lib/utils"
 import { useCandlestickPrice } from "@/hooks/use-candlestick-price"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { Button } from "@/components/ui/button"
@@ -90,6 +87,7 @@ export default function Home() {
   const [diffPercentage, setDiffPercentage] = useState(0)
   // not inversed = base token is the base, inversed = quote token is the base
   const [inversed, setInversed] = useState(false)
+  const diffedPriceBase = marketPrice.multipliedBy(1 + diffPercentage)
   const diffedPrice = !inversed
     ? marketPrice.multipliedBy(1 + diffPercentage)
     : marketPrice.pow(-1).multipliedBy(1 + diffPercentage)
@@ -172,11 +170,16 @@ export default function Home() {
               >
                 <YAxis
                   dataKey="close"
-                  hide
                   domain={[
                     (dataMin: number) => dataMin * 0.995,
-                    (dataMax: number) => dataMax * 1.005,
+                    (dataMax: number) =>
+                      Math.max(dataMax, diffedPriceBase.toNumber()) * 1.01,
                   ]}
+                  tickFormatter={(value) => {
+                    return formatter.value(value, formatter.decimals(value))
+                  }}
+                  axisLine={false}
+                  tickCount={8}
                 />
                 <XAxis
                   dataKey="time"
@@ -225,6 +228,37 @@ export default function Home() {
                   fill="url(#fillClose)"
                   stroke="var(--color-close)"
                 />
+
+                <ReferenceLine
+                  key="market-price"
+                  y={marketPrice.toNumber()}
+                  stroke="var(--primary)"
+                  strokeDasharray="3 3"
+                  strokeOpacity={diffPercentage === 0 ? 1 : 0.5}
+                  label={{
+                    opacity: diffPercentage === 0 ? 1 : 0.5,
+                    value: `Market Price: ${formatter.value(
+                      diffedPriceBase.toNumber(),
+                      formatter.decimals(diffedPriceBase.toNumber())
+                    )}`,
+                    position: "insideTopLeft",
+                    offset: 5,
+                    fill: "var(--primary)",
+                  }}
+                />
+                {diffPercentage !== 0 && (
+                  <ReferenceLine
+                    key="limit-price"
+                    y={diffedPriceBase.toNumber()}
+                    stroke="var(--primary)"
+                    label={{
+                      value: "Limit Price",
+                      position: "insideBottomRight",
+                      offset: 5,
+                      fill: "var(--primary)",
+                    }}
+                  />
+                )}
               </AreaChart>
             </ChartContainer>
           </CardContent>
@@ -478,13 +512,20 @@ export default function Home() {
               <div className="mt-1 flex items-center gap-2">
                 {[
                   {
-                    show: ![0, 0.01, 0.05, 0.1].includes(diffPercentage),
-                    label: `${diffPercentage > 0 ? "+" : ""}${(diffPercentage * 100).toFixed(2)}%`,
+                    show: ![0, 0.005, 0.01, 0.05, 0.1].includes(diffPercentage),
+                    label: formatter.percentage(
+                      diffPercentage,
+                      formatter.decimalsTight(diffPercentage)
+                    ),
                     value: diffPercentage,
                   },
                   {
                     label: "Market",
                     value: 0,
+                  },
+                  {
+                    label: `${!inversed ? "+0.5%" : "-0.5%"}`,
+                    value: 0.005,
                   },
                   {
                     label: `${!inversed ? "+1%" : "-1%"}`,

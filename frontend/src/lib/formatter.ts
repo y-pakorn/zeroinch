@@ -61,11 +61,28 @@ export const formatter = {
   duration: (time: number, unit?: duration.DurationUnitType) => {
     return dayjs.duration(time, unit).humanize()
   },
+  percentage: (value: number, decimals?: number) => {
+    return numbro(value).format({
+      mantissa: decimals ?? 2,
+      thousandSeparated: true,
+      trimMantissa: true,
+      optionalMantissa: true,
+      output: "percent",
+      forceSign: true,
+    })
+  },
   decimals: (value: number) => {
     if (value < 0.0001) return 10
     if (value < 0.001) return 8
     if (value < 0.01) return 6
     if (value < 10) return 4
+    return 2
+  },
+  decimalsTight: (value: number) => {
+    if (value < 0.0001) return 4
+    if (value < 0.001) return 4
+    if (value < 0.01) return 4
+    if (value < 10) return 2
     return 2
   },
 }
