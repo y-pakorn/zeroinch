@@ -130,7 +130,7 @@ export function DepositWithdrawDialog({
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck="false"
-              placeholder="0x000000000000000000000000000000000000dead"
+              placeholder="0x0000000000000000000000000000000000000000"
             />
             {address && (
               <Button
