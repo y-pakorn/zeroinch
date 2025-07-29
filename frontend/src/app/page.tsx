@@ -5,9 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import BigNumber from "bignumber.js"
 import {
   ArrowDown,
+  ArrowLeftRight,
   ArrowUp,
   ArrowUpDown,
   ChevronDown,
+  ChevronUp,
   Loader2,
   Wallet,
 } from "lucide-react"
@@ -27,6 +29,7 @@ import { z } from "zod"
 import { images } from "@/config/image"
 import { tokens } from "@/config/token"
 import { formatter } from "@/lib/formatter"
+import { cn } from "@/lib/utils"
 import { useCandlestickPrice } from "@/hooks/use-candlestick-price"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { Button } from "@/components/ui/button"
@@ -42,6 +45,7 @@ import { TransparentInput } from "@/components/transparent-input"
 
 // Zod schema for form validation
 const formSchema = z.object({
+  type: z.enum(["limit", "twap"]),
   baseTokenA: z.custom<Address>(
     (val) => typeof val === "string" && /^0x[a-fA-F0-9]{40}$/.test(val),
     { message: "Invalid Ethereum address" }
@@ -56,6 +60,11 @@ const formSchema = z.object({
   diffPercentage: z.number(),
   inversed: z.boolean(),
   expiry: z.number().positive("Expiry must be positive"),
+  numberOfParts: z
+    .number()
+    .int()
+    .min(2, "Must have at least 2 parts")
+    .max(100, "Cannot exceed 100 parts"),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -65,6 +74,7 @@ export default function Home() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      type: "limit",
       baseTokenA: "0x4200000000000000000000000000000000000006" as Address,
       baseTokenAmount: 0,
       quoteTokenA: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" as Address,
@@ -73,12 +83,15 @@ export default function Home() {
       diffPercentage: 0,
       inversed: false,
       expiry: 24,
+      numberOfParts: 2,
     },
   })
 
   const {
     watch,
     setValue,
+    reset,
+    resetField,
     getValues,
     formState: { errors },
   } = form
@@ -93,6 +106,8 @@ export default function Home() {
     diffPercentage,
     inversed,
     expiry,
+    numberOfParts,
+    type,
   } = watch()
 
   // UI state (keeping as useState since they're not part of form data)
@@ -132,21 +147,18 @@ export default function Home() {
 
   // Handle interdependent calculations
   useEffect(() => {
-    // When diffPercentage changes, recalculate base token amount
-    if (quoteTokenAmount > 0) {
-      const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
-      const newBaseTokenAmount = newPrice.pow(-1).multipliedBy(quoteTokenAmount)
-      setValue("baseTokenAmount", newBaseTokenAmount.toNumber())
-    }
-  }, [diffPercentage])
-
-  useEffect(() => {
-    if (baseTokenAmount > 0) {
+    // When diffPercentage changes, recalculate quote token amount
+    if (type === "limit" && quoteTokenAmount > 0) {
       const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
       const newQuoteTokenAmount = newPrice.multipliedBy(baseTokenAmount)
       setValue("quoteTokenAmount", newQuoteTokenAmount.toNumber())
     }
-  }, [prices])
+
+    if (type === "twap" && quoteTokenAmount > 0) {
+      const newQuoteTokenAmount = marketPrice.multipliedBy(baseTokenAmount)
+      setValue("quoteTokenAmount", newQuoteTokenAmount.toNumber())
+    }
+  }, [diffPercentage, marketPrice])
 
   // Helper function to handle amount changes
   const handleBaseAmountChange = (
@@ -209,12 +221,30 @@ export default function Home() {
     return (prices?.[baseTokenA] || 0) * baseTokenAmount
   }, [baseTokenA, baseTokenAmount, prices])
 
+  const setType = (type: "limit" | "twap") => {
+    setValue("type", type)
+
+    if (type === "twap") {
+      setValue("numberOfParts", 2)
+      setValue("diffPercentage", 0.01)
+      setValue("expiry", 1)
+    }
+
+    if (type === "limit") {
+      setValue("diffPercentage", 0)
+      setValue("expiry", 24)
+    }
+  }
+
+  const twapLimitUpper = marketPrice.multipliedBy(1 + diffPercentage)
+  const twapLimitLower = marketPrice.multipliedBy(1 - diffPercentage)
+
   return (
     <main
       className="container min-h-screen flex-col space-y-4 py-8"
       style={
         {
-          "--main-width": "400px",
+          "--main-width": "440px",
         } as React.CSSProperties
       }
     >
@@ -289,9 +319,18 @@ export default function Home() {
                 <YAxis
                   dataKey="close"
                   domain={[
-                    (dataMin: number) => dataMin * 0.995,
+                    (dataMin: number) =>
+                      Math.min(
+                        dataMin,
+                        type === "limit" ? dataMin : twapLimitLower.toNumber()
+                      ) * 0.995,
                     (dataMax: number) =>
-                      Math.max(dataMax, diffedPriceBase.toNumber()) * 1.01,
+                      Math.max(
+                        dataMax,
+                        type === "limit"
+                          ? diffedPriceBase.toNumber()
+                          : twapLimitUpper.toNumber()
+                      ) * 1.01,
                   ]}
                   tickFormatter={(value) => {
                     return formatter.value(value, formatter.decimals(value))
@@ -356,15 +395,48 @@ export default function Home() {
                   label={{
                     opacity: diffPercentage === 0 ? 1 : 0.5,
                     value: `Market Price: ${formatter.value(
-                      diffedPriceBase.toNumber(),
-                      formatter.decimals(diffedPriceBase.toNumber())
+                      marketPrice.toNumber(),
+                      formatter.decimals(marketPrice.toNumber())
                     )}`,
                     position: "insideTopLeft",
                     offset: 5,
                     fill: "var(--primary)",
                   }}
                 />
-                {diffPercentage !== 0 && (
+
+                {type === "twap" && (
+                  <ReferenceLine
+                    key="twap-price-upper"
+                    y={twapLimitUpper.toNumber()}
+                    stroke="white"
+                    label={{
+                      value: `TWAP Upper Limit: ${formatter.value(
+                        twapLimitUpper.toNumber(),
+                        formatter.decimals(twapLimitUpper.toNumber())
+                      )}`,
+                      position: "insideBottomRight",
+                      offset: 5,
+                      fill: "var(--primary)",
+                    }}
+                  />
+                )}
+                {type === "twap" && (
+                  <ReferenceLine
+                    key="twap-price-lower"
+                    y={twapLimitLower.toNumber()}
+                    stroke="white"
+                    label={{
+                      value: `TWAP Lower Limit: ${formatter.value(
+                        twapLimitLower.toNumber(),
+                        formatter.decimals(twapLimitLower.toNumber())
+                      )}`,
+                      position: "insideBottomRight",
+                      offset: 5,
+                      fill: "var(--primary)",
+                    }}
+                  />
+                )}
+                {type === "limit" && diffPercentage !== 0 && (
                   <ReferenceLine
                     key="limit-price"
                     y={diffedPriceBase.toNumber()}
@@ -382,9 +454,26 @@ export default function Home() {
           </CardContent>
         </Card>
         <div className="w-[var(--main-width)] shrink-0 space-y-2">
-          <div className="text-2xl font-semibold">
-            <span>Limit Order</span>
-            <span className="text-muted-foreground/80">/TWAP</span>
+          <div className="text-muted-foreground/80 text-2xl font-semibold">
+            <span
+              className={cn(
+                type === "limit" && "text-foreground",
+                "cursor-pointer"
+              )}
+              onClick={() => setType("limit")}
+            >
+              Limit Order
+            </span>
+            /
+            <span
+              className={cn(
+                type === "twap" && "text-foreground",
+                "cursor-pointer"
+              )}
+              onClick={() => setType("twap")}
+            >
+              TWAP
+            </span>
           </div>
           <Card className="relative">
             <Button
@@ -489,7 +578,7 @@ export default function Home() {
           <Card>
             <CardContent>
               <div className="text-muted-foreground text-sm">
-                And will receive
+                And will receive {type === "twap" ? "around" : ""}
               </div>
               <div className="flex items-center gap-2">
                 <SelectTokenDialog
@@ -510,6 +599,7 @@ export default function Home() {
                   value={quoteTokenAmount}
                   customInput={TransparentInput}
                   thousandSeparator
+                  disabled={type === "twap"}
                   className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
                   placeholder="0.0"
                   allowNegative={false}
@@ -543,132 +633,291 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent>
-              <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-                When 1 {!inversed ? baseToken.symbol : quoteToken.symbol} is
-                worth{" "}
-                <Button
-                  variant="ghost"
-                  size="iconXs"
-                  onClick={() => setValue("inversed", !inversed)}
-                >
-                  <ArrowUpDown />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <NumericFormat
-                  value={diffedPrice.toNumber()}
-                  customInput={TransparentInput}
-                  thousandSeparator
-                  className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
-                  placeholder="0.0"
-                  allowNegative={false}
-                  onValueChange={(value, { source }) => {
-                    handlePriceChange(value.floatValue, source)
-                  }}
-                  decimalScale={
-                    !inversed ? quoteToken.decimals : baseToken.decimals
-                  }
-                />
-                <img
-                  src={
-                    !inversed
-                      ? quoteToken.logoURI || images.unknown
-                      : baseToken.logoURI || images.unknown
-                  }
-                  alt={!inversed ? quoteToken.name : baseToken.name}
-                  className="size-4 rounded-full"
-                />
-                <div className="font-semibold">
-                  {!inversed ? quoteToken.symbol : baseToken.symbol}
-                </div>
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                {[
-                  {
-                    show: ![0, 0.005, 0.01, 0.05, 0.1].includes(diffPercentage),
-                    label: formatter.percentage(
-                      diffPercentage,
-                      formatter.decimalsTight(diffPercentage)
-                    ),
-                    value: diffPercentage,
-                  },
-                  {
-                    label: "Market",
-                    value: 0,
-                  },
-                  {
-                    label: `${!inversed ? "+0.5%" : "-0.5%"}`,
-                    value: 0.005,
-                  },
-                  {
-                    label: `${!inversed ? "+1%" : "-1%"}`,
-                    value: 0.01,
-                  },
-                  {
-                    label: `${!inversed ? "+5%" : "-5%"}`,
-                    value: 0.05,
-                  },
-                  {
-                    label: `${!inversed ? "+10%" : "-10%"}`,
-                    value: 0.1,
-                  },
-                ].map((item) =>
-                  item.show !== undefined && !item.show ? null : (
+          {type === "limit" && (
+            <>
+              <Card>
+                <CardContent>
+                  <div className="text-muted-foreground inline-flex w-full items-center gap-1 text-sm">
+                    When 1{" "}
+                    <img
+                      src={
+                        !inversed
+                          ? baseToken.logoURI || images.unknown
+                          : quoteToken.logoURI || images.unknown
+                      }
+                      alt={!inversed ? baseToken.name : quoteToken.name}
+                      className="size-3.5 rounded-full"
+                    />{" "}
+                    {!inversed ? baseToken.symbol : quoteToken.symbol} is worth{" "}
+                    <Button
+                      variant="ghost"
+                      size="iconXs"
+                      className="ml-auto"
+                      onClick={() => setValue("inversed", !inversed)}
+                    >
+                      <ArrowLeftRight />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <NumericFormat
+                      value={diffedPrice.toNumber()}
+                      customInput={TransparentInput}
+                      thousandSeparator
+                      className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
+                      placeholder="0.0"
+                      allowNegative={false}
+                      onValueChange={(value, { source }) => {
+                        handlePriceChange(value.floatValue, source)
+                      }}
+                      decimalScale={
+                        !inversed ? quoteToken.decimals : baseToken.decimals
+                      }
+                    />
+                    <img
+                      src={
+                        !inversed
+                          ? quoteToken.logoURI || images.unknown
+                          : baseToken.logoURI || images.unknown
+                      }
+                      alt={!inversed ? quoteToken.name : baseToken.name}
+                      className="size-4 rounded-full"
+                    />
+                    <div className="font-semibold">
+                      {!inversed ? quoteToken.symbol : baseToken.symbol}
+                    </div>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    {[
+                      {
+                        show: ![0, 0.005, 0.01, 0.05, 0.1].includes(
+                          diffPercentage
+                        ),
+                        label: formatter.percentage(
+                          diffPercentage,
+                          formatter.decimalsTight(diffPercentage)
+                        ),
+                        value: diffPercentage,
+                      },
+                      {
+                        label: "Market",
+                        value: 0,
+                      },
+                      {
+                        label: `${!inversed ? "+0.5%" : "-0.5%"}`,
+                        value: 0.005,
+                      },
+                      {
+                        label: `${!inversed ? "+1%" : "-1%"}`,
+                        value: 0.01,
+                      },
+                      {
+                        label: `${!inversed ? "+5%" : "-5%"}`,
+                        value: 0.05,
+                      },
+                      {
+                        label: `${!inversed ? "+10%" : "-10%"}`,
+                        value: 0.1,
+                      },
+                    ].map((item) =>
+                      item.show !== undefined && !item.show ? null : (
+                        <Button
+                          key={item.label}
+                          variant={
+                            item.show || diffPercentage === item.value
+                              ? "default"
+                              : "outline"
+                          }
+                          size="xs"
+                          onClick={() => {
+                            if (item.show) return
+                            setValue("diffPercentage", item.value)
+                          }}
+                        >
+                          {item.label}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-2 space-y-1">
+                  <div className="text-muted-foreground text-sm">Expiry</div>
+                  <div className="flex-1" />
+                  {[
+                    {
+                      label: "1 hour",
+                      value: 1,
+                    },
+                    {
+                      label: "12 hours",
+                      value: 12,
+                    },
+                    {
+                      label: "1 day",
+                      value: 24,
+                    },
+                    {
+                      label: "1 week",
+                      value: 168,
+                    },
+                  ].map((item) => (
                     <Button
                       key={item.label}
-                      variant={
-                        item.show || diffPercentage === item.value
-                          ? "default"
-                          : "outline"
-                      }
+                      variant={expiry === item.value ? "default" : "outline"}
                       size="xs"
-                      onClick={() => {
-                        if (item.show) return
-                        setValue("diffPercentage", item.value)
-                      }}
+                      onClick={() => setValue("expiry", item.value)}
                     >
                       {item.label}
                     </Button>
-                  )
-                )}
+                  ))}
+                </CardContent>
+              </Card>
+            </>
+          )}
+          {type === "twap" && (
+            <>
+              <Card>
+                <CardContent className="flex items-center gap-2 space-y-1 *:mb-0">
+                  <div className="text-muted-foreground shrink-0 text-sm">
+                    Price Protection
+                  </div>
+                  <div className="flex-1" />
+                  {[
+                    {
+                      label: "0.5%",
+                      value: 0.005,
+                    },
+                    {
+                      label: "1%",
+                      value: 0.01,
+                    },
+                    {
+                      label: "5%",
+                      value: 0.05,
+                    },
+                    {
+                      label: "10%",
+                      value: 0.1,
+                    },
+                  ].map((item) => (
+                    <Button
+                      key={item.label}
+                      variant={
+                        diffPercentage === item.value ? "default" : "outline"
+                      }
+                      size="xs"
+                      onClick={() => setValue("diffPercentage", item.value)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-2 space-y-1 *:mb-0">
+                  <div className="text-muted-foreground text-sm">Time</div>
+                  <div className="flex-1" />
+                  {[
+                    {
+                      label: "1 hour",
+                      value: 1,
+                    },
+                    {
+                      label: "6 hours",
+                      value: 6,
+                    },
+                    {
+                      label: "12 hours",
+                      value: 12,
+                    },
+                    {
+                      label: "1 day",
+                      value: 24,
+                    },
+                  ].map((item) => (
+                    <Button
+                      key={item.label}
+                      variant={expiry === item.value ? "default" : "outline"}
+                      size="xs"
+                      onClick={() => setValue("expiry", item.value)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-2 space-y-1 *:mb-0">
+                  <div className="text-muted-foreground shrink-0 text-sm">
+                    Number of Parts
+                  </div>
+                  <div className="flex-1" />
+                  <div className="mb-0 text-3xl! font-semibold tracking-[-0.05em]">
+                    {formatter.value(numberOfParts)}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="iconXs"
+                    disabled={numberOfParts === 2}
+                    onClick={() => {
+                      setValue("numberOfParts", numberOfParts - 1)
+                    }}
+                  >
+                    <ChevronDown />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="iconXs"
+                    disabled={numberOfParts === 100}
+                    onClick={() => {
+                      setValue("numberOfParts", numberOfParts + 1)
+                    }}
+                  >
+                    <ChevronUp />
+                  </Button>
+                </CardContent>
+              </Card>
+              <div className="grid grid-cols-2 gap-2">
+                <Card>
+                  <CardContent>
+                    <div className="text-muted-foreground text-sm">
+                      Buy Per Part
+                    </div>
+                    <div className="inline-flex items-center gap-1 text-2xl font-semibold tracking-[-0.05em]">
+                      {formatter.value(
+                        quoteTokenAmount / numberOfParts,
+                        formatter.decimals(quoteTokenAmount / numberOfParts)
+                      )}{" "}
+                      <img
+                        src={quoteToken.logoURI || images.unknown}
+                        alt={quoteToken.name}
+                        className="size-6 shrink-0 rounded-full"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent>
+                    <div className="text-muted-foreground text-sm">
+                      Sell Per Part
+                    </div>
+                    <div className="inline-flex items-center gap-1 text-2xl font-semibold tracking-[-0.05em]">
+                      {formatter.value(
+                        baseTokenAmount / numberOfParts,
+                        formatter.decimals(baseTokenAmount / numberOfParts)
+                      )}{" "}
+                      <img
+                        src={baseToken.logoURI || images.unknown}
+                        alt={baseToken.name}
+                        className="size-6 shrink-0 rounded-full"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-2 space-y-1">
-              <div className="text-muted-foreground text-sm">Expiry</div>
-              <div className="flex-1" />
-              {[
-                {
-                  label: "1 hour",
-                  value: 1,
-                },
-                {
-                  label: "12 hours",
-                  value: 12,
-                },
-                {
-                  label: "1 day",
-                  value: 24,
-                },
-                {
-                  label: "1 week",
-                  value: 168,
-                },
-              ].map((item) => (
-                <Button
-                  key={item.label}
-                  variant={expiry === item.value ? "default" : "outline"}
-                  size="xs"
-                  onClick={() => setValue("expiry", item.value)}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
+            </>
+          )}
           <Button className="w-full" size="lg">
             Submit Order
           </Button>
