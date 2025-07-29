@@ -6,6 +6,14 @@ struct Combined_secret {
     nonce: Field,
 }
 
+// hash of note is H(asset_address, amount, H(secret,nonce))
+// a UTXO note private use only
+struct Note {
+    asset_address: Field,
+    amount: u128,
+    secret: Combined_secret,
+}
+
 fn leaf_hasher(leafs: [Field; 2]) -> Field {
     poseidon::poseidon2::Poseidon2::hash(leafs, 2)
 }
@@ -38,20 +46,6 @@ fn note_hasher(input: Note) -> Field {
         [input.asset_address, input.amount as Field, secret_hash],
         3,
     )
-}
-
-// real note is
-// H(asset_address, amount, H(secret,nonce))
-// a UTXO note private use only
-struct Note {
-    asset_address: Field,
-    amount: u128,
-    secret: Combined_secret,
-}
-// a UTXO note handling assets
-struct Spending_asset {
-    asset_address: Field,
-    amount: u128,
 }
 
 struct Merkle_proof {
