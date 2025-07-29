@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import BigNumber from "bignumber.js"
-import { ArrowDown, ChevronDown, Loader2 } from "lucide-react"
+import { ArrowDown, ArrowUpDown, ChevronDown, Loader2 } from "lucide-react"
 import { NumericFormat } from "react-number-format"
 import {
   Area,
@@ -73,13 +73,26 @@ export default function Home() {
   const [selectQuoteTokenDialogOpen, setSelectQuoteTokenDialogOpen] =
     useState(false)
 
-  const marketPrice = new BigNumber(prices?.[baseTokenA] || 0).div(
-    prices?.[quoteTokenA] || 1
+  const marketPrice = useMemo(
+    () =>
+      new BigNumber(prices?.[baseTokenA] || 0).div(prices?.[quoteTokenA] || 1),
+    [prices, baseTokenA, quoteTokenA]
   )
 
   // -1 to infinity, 0 is the market price, 1 is 100% higher, -1 is 100% lower
   const [diffPercentage, setDiffPercentage] = useState(0)
-  const diffedPrice = marketPrice.multipliedBy(1 + diffPercentage)
+  // not inversed = base token is the base, inversed = quote token is the base
+  const [inversed, setInversed] = useState(false)
+  const diffedPrice = !inversed
+    ? marketPrice.multipliedBy(1 + diffPercentage)
+    : marketPrice.pow(-1).multipliedBy(1 + diffPercentage)
+
+  useEffect(() => {
+    // if diffPercentage is changed, we need to recalculate the base token amount
+    const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
+    const newBaseTokenAmount = newPrice.pow(-1).multipliedBy(quoteTokenAmount)
+    setBaseTokenAmount(newBaseTokenAmount.toNumber())
+  }, [diffPercentage])
 
   return (
     <main className="container min-h-screen flex-col space-y-4 py-8">
@@ -252,7 +265,7 @@ export default function Home() {
                   onValueChange={(value, { source }) => {
                     setBaseTokenAmount(value.floatValue || 0)
                     if (value.floatValue && source === "event") {
-                      const quoteTokenAmount = marketPrice
+                      const quoteTokenAmount = diffedPrice
                         .multipliedBy(value.floatValue)
                         .toNumber()
                       setQuoteTokenAmount(quoteTokenAmount)
@@ -288,12 +301,7 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex-1" />
-                <div
-                  className="cursor-pointer text-xs"
-                  onClick={() => {
-                    setBaseTokenAmount(1000000)
-                  }}
-                >
+                <div className="text-xs">
                   Balance: {formatter.valueLocale(1000000)}
                 </div>
               </div>
@@ -328,7 +336,7 @@ export default function Home() {
                   onValueChange={(value, { source }) => {
                     setQuoteTokenAmount(value.floatValue || 0)
                     if (value.floatValue && source === "event") {
-                      const baseTokenAmount = marketPrice
+                      const baseTokenAmount = diffedPrice
                         .pow(-1)
                         .multipliedBy(value.floatValue)
                         .toNumber()
@@ -365,12 +373,7 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex-1" />
-                <div
-                  className="cursor-pointer text-xs"
-                  onClick={() => {
-                    setQuoteTokenAmount(1000000)
-                  }}
-                >
+                <div className="text-xs">
                   Balance: {formatter.valueLocale(1000000)}
                 </div>
               </div>
@@ -378,8 +381,16 @@ export default function Home() {
           </Card>
           <Card>
             <CardContent>
-              <div className="text-muted-foreground text-sm">
-                When 1 {baseToken.symbol} is worth
+              <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+                When 1 {!inversed ? baseToken.symbol : quoteToken.symbol} is
+                worth{" "}
+                <Button
+                  variant="ghost"
+                  size="iconXs"
+                  onClick={() => setInversed((i) => !i)}
+                >
+                  <ArrowUpDown />
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 <NumericFormat
@@ -397,27 +408,35 @@ export default function Home() {
                       }
 
                       // value is the real price, we need to calculate the percentage
+                      const price = !inversed
+                        ? marketPrice
+                        : marketPrice.pow(-1)
                       const newPercentage = new BigNumber(value.floatValue)
-                        .minus(marketPrice)
-                        .div(marketPrice)
+                        .minus(price)
+                        .div(price)
                         .toNumber()
 
                       setDiffPercentage(newPercentage)
                     }
                   }}
-                  decimalScale={Math.min(
-                    baseToken.decimals,
-                    quoteToken.decimals
-                  )}
+                  decimalScale={
+                    !inversed ? quoteToken.decimals : baseToken.decimals
+                  }
                 />
                 <img
-                  src={quoteToken.logoURI || images.unknown}
-                  alt={quoteToken.name}
+                  src={
+                    !inversed
+                      ? quoteToken.logoURI || images.unknown
+                      : baseToken.logoURI || images.unknown
+                  }
+                  alt={!inversed ? quoteToken.name : baseToken.name}
                   className="size-4 rounded-full"
                 />
-                <div className="font-semibold">{quoteToken.symbol}</div>
+                <div className="font-semibold">
+                  {!inversed ? quoteToken.symbol : baseToken.symbol}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="mt-1 flex items-center gap-2">
                 {[
                   {
                     show: ![0, 0.01, 0.05, 0.1].includes(diffPercentage),
@@ -429,15 +448,15 @@ export default function Home() {
                     value: 0,
                   },
                   {
-                    label: "+1%",
+                    label: `${!inversed ? "+1%" : "-1%"}`,
                     value: 0.01,
                   },
                   {
-                    label: "+5%",
+                    label: `${!inversed ? "+5%" : "-5%"}`,
                     value: 0.05,
                   },
                   {
-                    label: "+10%",
+                    label: `${!inversed ? "+10%" : "-10%"}`,
                     value: 0.1,
                   },
                 ].map((item) =>
