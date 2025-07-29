@@ -1,61 +1,62 @@
-included_asset = ["", ""]
-merkle_root = ""
-nullifier = ["", ""]
-order_hash = ["", "", ""]
-precomp_secret = ["", "", "", "", "", "", "", "", "", ""]
+included_asset = ["1", "2"]
+merkle_root = "0x28e13ab2b8add33a78c87c867542b75c159cf36cc88b2ce5220c505cb97d3078"
+new_note_hash = ["0x121d9827796661a1a787c309f18561ff04a55301f9cbaf948f5fe726987ae820", "0x150ca397f04aa44b96f32b29c7140521a2dabea219e55e643c341c621f52c7a4"]
+nullifier = ["69", "456"]
+order_hash = ["1", "2", "3"]
+precomp_secret = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
 [[inclusion_proof]]
-index = ""
-path = ["", "", "", "", "", "", "", "", "", ""]
+index = "0"
+path = ["0x080e8fc84324fe0d93af84114d362aea381e1e40e7cfe4de2c83b109f4b06b8a", "0x168758332d5b3e2d13be8048c8011b454590e06c44bce7f702f09103eef5a373", "0x10a1bcbc8042d777b9e26d836704377fdd79202b3b5db02f36eb70407c332b75", "0x24177b4692df7493b626c0a03a9891e0ee5c514fbd5856964e810c5e9d03ebf2", "0x0157eb7606c8121d046231c4fa78714a91ab2fd0690e9b1b0c848468ebd13dbc", "0x0c88072f937ef6667412b0ef4112b02fc14562dd9d3430473a1f8cad670d1290", "0x1a7bed288158678a78d548ecfddb76087f083df547dafc7665280f51c17ac724", "0x29f0f539ca2b1865fb736203c036100998291b6e1072323a1db5022f0a52b3cc", "0x1947bd057dbac9cf738f9e2fcbfca4a73e42f8dafbc2faab1143c7ed4f245df8", "0x1ae927f4a536d62bb4aaae905c3e67535326cf4dd49bd3170280c96669cfeb12"]
 
 [[inclusion_proof]]
-index = ""
-path = ["", "", "", "", "", "", "", "", "", ""]
+index = "1"
+path = ["0x1bc5c5aa3351fd98551518222abcbca16b25b468749d44522b4b7073be871b62", "0x168758332d5b3e2d13be8048c8011b454590e06c44bce7f702f09103eef5a373", "0x10a1bcbc8042d777b9e26d836704377fdd79202b3b5db02f36eb70407c332b75", "0x24177b4692df7493b626c0a03a9891e0ee5c514fbd5856964e810c5e9d03ebf2", "0x0157eb7606c8121d046231c4fa78714a91ab2fd0690e9b1b0c848468ebd13dbc", "0x0c88072f937ef6667412b0ef4112b02fc14562dd9d3430473a1f8cad670d1290", "0x1a7bed288158678a78d548ecfddb76087f083df547dafc7665280f51c17ac724", "0x29f0f539ca2b1865fb736203c036100998291b6e1072323a1db5022f0a52b3cc", "0x1947bd057dbac9cf738f9e2fcbfca4a73e42f8dafbc2faab1143c7ed4f245df8", "0x1ae927f4a536d62bb4aaae905c3e67535326cf4dd49bd3170280c96669cfeb12"]
 
 [[input_note]]
-amount = ""
-asset_address = ""
+amount = "100"
+asset_address = "1"
 
 [input_note.secret]
-nonce = ""
-secret = ""
+nonce = "69"
+secret = "42"
 
 [[input_note]]
-amount = ""
-asset_address = ""
+amount = "50"
+asset_address = "2"
 
 [input_note.secret]
-nonce = ""
-secret = ""
+nonce = "456"
+secret = "123"
+
+[[order_asset]]
+amount = "15"
+asset_address = "2"
+
+[order_asset.secret]
+nonce = "0"
+secret = "0"
+
+[[order_asset]]
+amount = "25"
+asset_address = "1"
+
+[order_asset.secret]
+nonce = "0"
+secret = "0"
 
 [[output_note]]
-amount = ""
-asset_address = ""
+amount = "75"
+asset_address = "1"
 
 [output_note.secret]
-nonce = ""
-secret = ""
+nonce = "3"
+secret = "2"
 
 [[output_note]]
-amount = ""
-asset_address = ""
+amount = "35"
+asset_address = "2"
 
 [output_note.secret]
-nonce = ""
-secret = ""
-
-[[public_asset]]
-amount = ""
-asset_address = ""
-
-[public_asset.secret]
-nonce = ""
-secret = ""
-
-[[public_asset]]
-amount = ""
-asset_address = ""
-
-[public_asset.secret]
-nonce = ""
-secret = ""
+nonce = "31"
+secret = "12"

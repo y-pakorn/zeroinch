@@ -92,8 +92,8 @@ fn main(
         }
     }
 
-    let mut sum_asset_1_in = 0u128;
-    let mut sum_asset_2_in = 0u128;
+    let mut sum_asset_1_in = 0;
+    let mut sum_asset_2_in = 0;
     for i in 0..2 {
         if input_note[i].asset_address == included_asset[0] {
             sum_asset_1_in += input_note[i].amount;
@@ -107,6 +107,9 @@ fn main(
         if output_note[i].amount != 0 {
             // note hash correctly
             let out_hash = note_hasher(output_note[i]);
+            println(out_hash);
+            println(new_note_hash[i]);
+
             assert(new_note_hash[i] == out_hash);
             // asset is in included_asset in any order
             assert(
@@ -117,8 +120,8 @@ fn main(
     }
 
     // sum of output
-    let mut sum_asset_1_out = 0u128;
-    let mut sum_asset_2_out = 0u128;
+    let mut sum_asset_1_out = 0;
+    let mut sum_asset_2_out = 0;
     for i in 0..2 {
         if output_note[i].asset_address == included_asset[0] {
             sum_asset_1_out += output_note[i].amount;
@@ -278,7 +281,6 @@ fn test_note_full() {
 
     let order_note_2 =
         Note { asset_address: 1, amount: 25, secret: Combined_secret { secret: 0, nonce: 0 } };
-
     main(
         included_asset,
         merkle_root,
