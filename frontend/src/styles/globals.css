@@ -180,3 +180,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+.web3modal-modal-lightbox {
+  z-index: 1000 !important;
+}

@@ -8,6 +8,8 @@ export interface IAccount {
 
 export interface Note {
   seed: Hex
+  balance: number
+  address: Address
 }
 
 export type IOrder = ILimitOrder | ITwapOrder

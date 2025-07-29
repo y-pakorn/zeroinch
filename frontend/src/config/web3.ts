@@ -1,4 +1,5 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit"
+import { getConnections } from "@wagmi/core"
 import { cookieStorage, createStorage } from "wagmi"
 
 import { env } from "@/env.mjs"
@@ -14,3 +15,5 @@ export const web3Config = getDefaultConfig({
   chains: [chain],
   ssr: true,
 })
+
+export const connections = getConnections(web3Config)

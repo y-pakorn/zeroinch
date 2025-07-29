@@ -27,3 +27,14 @@ export const placeOrderFormSchema = z.object({
 })
 
 export type PlaceOrderFormData = z.infer<typeof placeOrderFormSchema>
+
+export const depositWithdrawFormSchema = z.object({
+  amount: z.number().positive("Amount must be positive"),
+  tokenA: z.custom<Address>(
+    (val) => typeof val === "string" && /^0x[a-fA-F0-9]{40}$/.test(val),
+    { message: "Invalid Ethereum address" }
+  ),
+  address: z.string().optional(),
+})
+
+export type DepositWithdrawFormData = z.infer<typeof depositWithdrawFormSchema>
