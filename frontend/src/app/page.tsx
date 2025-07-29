@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react"
 import BigNumber from "bignumber.js"
-import { ArrowDown, ArrowUpDown, ChevronDown, Loader2 } from "lucide-react"
+import { duration } from "dayjs"
+import {
+  ArrowDown,
+  ArrowUpDown,
+  ChevronDown,
+  Loader2,
+  Wallet,
+} from "lucide-react"
 import { NumericFormat } from "react-number-format"
 import {
   Area,
@@ -93,6 +100,8 @@ export default function Home() {
     const newBaseTokenAmount = newPrice.pow(-1).multipliedBy(quoteTokenAmount)
     setBaseTokenAmount(newBaseTokenAmount.toNumber())
   }, [diffPercentage])
+
+  const [expiry, setExpiry] = useState(24)
 
   return (
     <main className="container min-h-screen flex-col space-y-4 py-8">
@@ -301,8 +310,37 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex-1" />
-                <div className="text-xs">
-                  Balance: {formatter.valueLocale(1000000)}
+                <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                  <Wallet className="size-3" />
+                  {formatter.valueLocale(1000000)}
+                  <Button
+                    variant="outline"
+                    size="2xs"
+                    onClick={() => {
+                      const balance = 500000
+                      setBaseTokenAmount(balance)
+                      const quoteTokenAmount = diffedPrice
+                        .multipliedBy(balance)
+                        .toNumber()
+                      setQuoteTokenAmount(quoteTokenAmount)
+                    }}
+                  >
+                    Half
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="2xs"
+                    onClick={() => {
+                      const balance = 1000000
+                      setBaseTokenAmount(balance)
+                      const quoteTokenAmount = diffedPrice
+                        .multipliedBy(balance)
+                        .toNumber()
+                      setQuoteTokenAmount(quoteTokenAmount)
+                    }}
+                  >
+                    Max
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -373,8 +411,9 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex-1" />
-                <div className="text-xs">
-                  Balance: {formatter.valueLocale(1000000)}
+                <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                  <Wallet className="size-3" />
+                  {formatter.valueLocale(1000000)}
                 </div>
               </div>
             </CardContent>
@@ -479,6 +518,39 @@ export default function Home() {
                   )
                 )}
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-2 space-y-1">
+              <div className="text-muted-foreground text-sm">Expiry</div>
+              <div className="flex-1" />
+              {[
+                {
+                  label: "1 hour",
+                  value: 1,
+                },
+                {
+                  label: "12 hours",
+                  value: 12,
+                },
+                {
+                  label: "1 day",
+                  value: 24,
+                },
+                {
+                  label: "1 week",
+                  value: 168,
+                },
+              ].map((item) => (
+                <Button
+                  key={item.label}
+                  variant={expiry === item.value ? "default" : "outline"}
+                  size="xs"
+                  onClick={() => setExpiry(item.value)}
+                >
+                  {item.label}
+                </Button>
+              ))}
             </CardContent>
           </Card>
         </div>
