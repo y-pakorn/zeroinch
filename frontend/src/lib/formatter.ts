@@ -27,9 +27,9 @@ export const formatter = {
       average: true,
     })
   },
-  value: (value: number | string) => {
+  value: (value: number | string, decimals?: number) => {
     return numbro(value).format({
-      mantissa: 4,
+      mantissa: decimals ?? 4,
       thousandSeparated: true,
       trimMantissa: true,
     })
@@ -60,5 +60,12 @@ export const formatter = {
   },
   duration: (time: number, unit?: duration.DurationUnitType) => {
     return dayjs.duration(time, unit).humanize()
+  },
+  decimals: (value: number) => {
+    if (value < 0.0001) return 10
+    if (value < 0.001) return 8
+    if (value < 0.01) return 6
+    if (value < 10) return 4
+    return 2
   },
 }

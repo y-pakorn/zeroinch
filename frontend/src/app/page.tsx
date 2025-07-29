@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import BigNumber from "bignumber.js"
+import { ArrowDown, ChevronDown, Loader2 } from "lucide-react"
 import { NumericFormat } from "react-number-format"
 import {
   Area,
@@ -17,6 +18,7 @@ import { Address } from "viem"
 import { images } from "@/config/image"
 import { tokens } from "@/config/token"
 import { formatter } from "@/lib/formatter"
+import { cn } from "@/lib/utils"
 import { useCandlestickPrice } from "@/hooks/use-candlestick-price"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { Button } from "@/components/ui/button"
@@ -33,17 +35,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { SelectTokenDialog } from "@/components/select-token-dialog"
 import { TransparentInput } from "@/components/transparent-input"
 
 export default function Home() {
   const [baseTokenA, setBaseTokenA] = useState<Address>(
     "0x4200000000000000000000000000000000000006"
   )
-  const [baseTokenAmount, setBaseTokenAmount] = useState<number | undefined>()
+  const [baseTokenAmount, setBaseTokenAmount] = useState<number>(0)
   const baseToken = tokens[baseTokenA]!
+
   const [quoteTokenA, setQuoteTokenA] = useState<Address>(
     "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   )
+  const [quoteTokenAmount, setQuoteTokenAmount] = useState<number>(0)
   const quoteToken = tokens[quoteTokenA]!
 
   const [selectedInterval, setSelectedInterval] = useState<300 | 900 | 3600>(
@@ -63,6 +68,19 @@ export default function Home() {
     },
   })
 
+  const [selectBaseTokenDialogOpen, setSelectBaseTokenDialogOpen] =
+    useState(false)
+  const [selectQuoteTokenDialogOpen, setSelectQuoteTokenDialogOpen] =
+    useState(false)
+
+  const marketPrice = new BigNumber(prices?.[baseTokenA] || 0).div(
+    prices?.[quoteTokenA] || 1
+  )
+
+  // -1 to infinity, 0 is the market price, 1 is 100% higher, -1 is 100% lower
+  const [diffPercentage, setDiffPercentage] = useState(0)
+  const diffedPrice = marketPrice.multipliedBy(1 + diffPercentage)
+
   return (
     <main className="container min-h-screen flex-col space-y-4 py-8">
       <div className="font-mono font-semibold">ZeroInch</div>
@@ -72,12 +90,12 @@ export default function Home() {
             <img
               src={baseToken.logoURI || images.unknown}
               alt={baseToken.name}
-              className="size-10 shrink-0"
+              className="size-10 shrink-0 rounded-full"
             />
             <img
               src={quoteToken.logoURI || images.unknown}
               alt={quoteToken.name}
-              className="-ml-4 size-10 shrink-0"
+              className="-ml-4 size-10 shrink-0 rounded-full"
             />
             <div className="-space-y-1">
               <div className="text-xl font-semibold">
@@ -174,7 +192,7 @@ export default function Home() {
                       }}
                       indicator="line"
                       valueFormatter={(value) => {
-                        return `${formatter.valueLocale(value)} ${quoteToken.symbol}`
+                        return `${formatter.value(value, formatter.decimals(value))} ${quoteToken.symbol}`
                       }}
                     />
                   }
@@ -189,44 +207,262 @@ export default function Home() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card className="w-[400px] shrink-0">
-          <CardContent>
-            <div className="text-muted-foreground text-sm">You are selling</div>
-            <div className="flex items-center gap-2">
-              <NumericFormat
-                value={baseTokenAmount}
-                customInput={TransparentInput}
-                thousandSeparator
-                className="h-10 w-full text-2xl! font-semibold"
-                placeholder="0.0"
-                onValueChange={(value) => {
-                  setBaseTokenAmount(value.floatValue)
-                }}
-              />
-              <Button variant="outline" size="sm">
-                <img
-                  src={baseToken.logoURI || images.unknown}
-                  alt={baseToken.name}
-                  className="size-4"
-                />
-                <div className="font-semibold">{baseToken.symbol}</div>
-                <ChevronDown />
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              {baseTokenAmount && (
-                <div className="text-muted-foreground truncate text-xs">
-                  ≈{" "}
-                  {formatter.usd((prices?.[baseTokenA] || 0) * baseTokenAmount)}
-                </div>
-              )}
-              <div className="flex-1" />
+        <div className="w-[400px] shrink-0 space-y-2">
+          <Card className="relative">
+            <Button
+              className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 translate-y-[calc(50%+0.25rem)]"
+              size="icon"
+              variant="secondary"
+              onClick={() => {
+                const temp = baseTokenA
+                const tempAmount = baseTokenAmount
+                setBaseTokenA(quoteTokenA)
+                setQuoteTokenA(temp)
+                setBaseTokenAmount(quoteTokenAmount)
+                setQuoteTokenAmount(tempAmount)
+              }}
+            >
+              <ArrowDown />
+            </Button>
+            <CardContent>
               <div className="text-muted-foreground text-sm">
-                Balance: {formatter.valueLocale(1000000)}
+                You are selling
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center gap-2">
+                <SelectTokenDialog
+                  open={selectBaseTokenDialogOpen}
+                  onOpenChange={setSelectBaseTokenDialogOpen}
+                  excludeTokens={[baseTokenA, quoteTokenA]}
+                  onSelect={(token) => {
+                    setBaseTokenA(token.address)
+                    // recalculate base token amount based on the new token
+                    setBaseTokenAmount(
+                      (baseTokenAmount * (prices?.[baseTokenA] || 0)) /
+                        (prices?.[token.address] || 0)
+                    )
+                  }}
+                />
+                <NumericFormat
+                  value={baseTokenAmount}
+                  customInput={TransparentInput}
+                  thousandSeparator
+                  className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
+                  placeholder="0.0"
+                  allowNegative={false}
+                  onValueChange={(value, { source }) => {
+                    setBaseTokenAmount(value.floatValue || 0)
+                    if (value.floatValue && source === "event") {
+                      const quoteTokenAmount = marketPrice
+                        .multipliedBy(value.floatValue)
+                        .toNumber()
+                      setQuoteTokenAmount(quoteTokenAmount)
+                    }
+
+                    if (value.floatValue === undefined) {
+                      setQuoteTokenAmount(0)
+                    }
+                  }}
+                  decimalScale={baseToken.decimals}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectBaseTokenDialogOpen(true)}
+                >
+                  <img
+                    src={baseToken.logoURI || images.unknown}
+                    alt={baseToken.name}
+                    className="size-4 rounded-full"
+                  />
+                  <div className="font-semibold">{baseToken.symbol}</div>
+                  <ChevronDown />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                {!!baseTokenAmount && (
+                  <div className="text-muted-foreground truncate text-xs">
+                    ≈{" "}
+                    {formatter.usd(
+                      (prices?.[baseTokenA] || 0) * baseTokenAmount
+                    )}
+                  </div>
+                )}
+                <div className="flex-1" />
+                <div
+                  className="cursor-pointer text-xs"
+                  onClick={() => {
+                    setBaseTokenAmount(1000000)
+                  }}
+                >
+                  Balance: {formatter.valueLocale(1000000)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-muted-foreground text-sm">
+                And will receive
+              </div>
+              <div className="flex items-center gap-2">
+                <SelectTokenDialog
+                  open={selectQuoteTokenDialogOpen}
+                  onOpenChange={setSelectQuoteTokenDialogOpen}
+                  excludeTokens={[quoteTokenA, baseTokenA]}
+                  onSelect={(token) => {
+                    setQuoteTokenA(token.address)
+                    // recalculate quote token amount based on the new token
+                    setQuoteTokenAmount(
+                      (baseTokenAmount * (prices?.[baseTokenA] || 0)) /
+                        (prices?.[token.address] || 0)
+                    )
+                  }}
+                />
+                <NumericFormat
+                  value={quoteTokenAmount}
+                  customInput={TransparentInput}
+                  thousandSeparator
+                  className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
+                  placeholder="0.0"
+                  allowNegative={false}
+                  onValueChange={(value, { source }) => {
+                    setQuoteTokenAmount(value.floatValue || 0)
+                    if (value.floatValue && source === "event") {
+                      const baseTokenAmount = marketPrice
+                        .pow(-1)
+                        .multipliedBy(value.floatValue)
+                        .toNumber()
+                      setBaseTokenAmount(baseTokenAmount)
+                    }
+
+                    if (value.floatValue === undefined) {
+                      setBaseTokenAmount(0)
+                    }
+                  }}
+                  decimalScale={quoteToken.decimals}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectQuoteTokenDialogOpen(true)}
+                >
+                  <img
+                    src={quoteToken.logoURI || images.unknown}
+                    alt={quoteToken.name}
+                    className="size-4 rounded-full"
+                  />
+                  <div className="font-semibold">{quoteToken.symbol}</div>
+                  <ChevronDown />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                {!!quoteTokenAmount && (
+                  <div className="text-muted-foreground truncate text-xs">
+                    ≈{" "}
+                    {formatter.usd(
+                      (prices?.[quoteTokenA] || 0) * quoteTokenAmount
+                    )}
+                  </div>
+                )}
+                <div className="flex-1" />
+                <div
+                  className="cursor-pointer text-xs"
+                  onClick={() => {
+                    setQuoteTokenAmount(1000000)
+                  }}
+                >
+                  Balance: {formatter.valueLocale(1000000)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-muted-foreground text-sm">
+                When 1 {baseToken.symbol} is worth
+              </div>
+              <div className="flex items-center gap-2">
+                <NumericFormat
+                  value={diffedPrice.toNumber()}
+                  customInput={TransparentInput}
+                  thousandSeparator
+                  className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
+                  placeholder="0.0"
+                  allowNegative={false}
+                  onValueChange={(value, { source }) => {
+                    if (source === "event") {
+                      if (!value.floatValue) {
+                        setDiffPercentage(0)
+                        return
+                      }
+
+                      // value is the real price, we need to calculate the percentage
+                      const newPercentage = new BigNumber(value.floatValue)
+                        .minus(marketPrice)
+                        .div(marketPrice)
+                        .toNumber()
+
+                      setDiffPercentage(newPercentage)
+                    }
+                  }}
+                  decimalScale={Math.min(
+                    baseToken.decimals,
+                    quoteToken.decimals
+                  )}
+                />
+                <img
+                  src={quoteToken.logoURI || images.unknown}
+                  alt={quoteToken.name}
+                  className="size-4 rounded-full"
+                />
+                <div className="font-semibold">{quoteToken.symbol}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {[
+                  {
+                    show: ![0, 0.01, 0.05, 0.1].includes(diffPercentage),
+                    label: `${diffPercentage > 0 ? "+" : ""}${(diffPercentage * 100).toFixed(2)}%`,
+                    value: diffPercentage,
+                  },
+                  {
+                    label: "Market",
+                    value: 0,
+                  },
+                  {
+                    label: "+1%",
+                    value: 0.01,
+                  },
+                  {
+                    label: "+5%",
+                    value: 0.05,
+                  },
+                  {
+                    label: "+10%",
+                    value: 0.1,
+                  },
+                ].map((item) =>
+                  item.show !== undefined && !item.show ? null : (
+                    <Button
+                      key={item.label}
+                      variant={
+                        item.show || diffPercentage === item.value
+                          ? "default"
+                          : "outline"
+                      }
+                      size="xs"
+                      onClick={() => {
+                        if (item.show) return
+                        setDiffPercentage(item.value)
+                      }}
+                    >
+                      {item.label}
+                    </Button>
+                  )
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   )
