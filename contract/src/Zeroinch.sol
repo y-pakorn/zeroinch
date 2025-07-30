@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "./PoseidonT2.sol";
 import "./PoseidonT3.sol";
 import "./PoseidonT4.sol";
+import "@1inch/solidity-utils/contracts/libraries/AddressLib.sol";
 
 import "./MerkleTreeWithHistory.sol";
 
@@ -19,6 +20,7 @@ contract Zeroinch is
     MerkleTreeWithHistory(20)
 {
     address private immutable _LIMIT_ORDER_PROTOCOL;
+    using AddressLib for Address;
 
     modifier onlyLimitOrderProtocol() {
         if (msg.sender != _LIMIT_ORDER_PROTOCOL)
@@ -42,10 +44,17 @@ contract Zeroinch is
         bytes32 indexed SecretHash,
         uint inserted_index
     );
+    struct ZOrder {
+        address asset;
+        uint256 amount;
+        bytes32 secretHash;
+        bytes32 cancelHash;
+    }
 
-    mapping(bytes32 => OrderStatus) public orderStatus;
     mapping(bytes32 => bool) public nullifierHashes;
     mapping(bytes32 => bool) public insertedNotes;
+    mapping(bytes32 => ZOrder) public zeroinchOrder;
+    mapping(bytes32 => OrderStatus) public orderStatus;
 
     constructor(address _verifierAddress, address limitOrderProtocol) {
         _verifier = IVerifier(_verifierAddress);
@@ -91,6 +100,13 @@ contract Zeroinch is
         bytes32 orderHash = keccak256(
             abi.encodePacked(asset, amount, to, nonce)
         );
+        require(orderStatus[orderHash] == OrderStatus.Open);
+        require(zeroinchOrder[orderHash].asset == asset);
+        require(zeroinchOrder[orderHash].amount == amount);
+
+        orderStatus[orderHash] = OrderStatus.Done;
+
+        IERC20(asset).transfer(to, amount);
     }
 
     function preInteraction(
@@ -102,7 +118,25 @@ contract Zeroinch is
         uint256 takingAmount,
         uint256 remainingMakingAmount,
         bytes calldata extraData
-    ) external {}
+    ) external {
+        require(orderStatus[orderHash] == OrderStatus.Open);
+        require(zeroinchOrder[orderHash].asset == order.makerAsset.get());
+        require(zeroinchOrder[orderHash].amount == order.makingAmount);
+        IERC20(order.makerAsset.get()).approve(
+            _LIMIT_ORDER_PROTOCOL,
+            order.makingAmount
+        );
+    }
+
+    function cancel(bytes32 orderHash, bytes32 preimage) external {
+        require(keccak256(preimage) == zeroinchOrder[orderHash].cancelHash);
+        orderStatus[orderHash] = OrderStatus.Cancelled;
+        _createNote(
+            zeroinchOrder[orderHash].asset,
+            zeroinchOrder[orderHash].amount,
+            zeroinchOrder[orderHash].secretHash
+        );
+    }
 
     function postInteraction(
         IOrderMixin.Order calldata order,
@@ -113,7 +147,14 @@ contract Zeroinch is
         uint256 takingAmount,
         uint256 remainingMakingAmount,
         bytes calldata extraData
-    ) external {}
+    ) external {
+        orderStatus[orderHash] = OrderStatus.Done;
+        _createNote(
+            order.takerAsset.get(),
+            takingAmount,
+            zeroinchOrder[orderHash].secretHash
+        );
+    }
 
     /**
      * @notice Checks if orderHash signature was signed with real order maker.
