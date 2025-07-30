@@ -35,6 +35,7 @@
     "cmdk": "^1.1.1",
     "dayjs": "^1.11.13",
     "idb-keyval": "^6.2.2",
+    "lightweight-charts": "^5.0.8",
     "lodash": "^4.17.21",
     "lucide-react": "^0.528.0",
     "next": "15.4.4",

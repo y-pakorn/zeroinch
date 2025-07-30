@@ -1,5 +1,17 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import BigNumber from "bignumber.js"
+import {
+  AreaSeries,
+  CandlestickSeries,
+  ColorType,
+  createChart,
+  CrosshairMode,
+  IChartApi,
+  IPriceLine,
+  ISeriesApi,
+  LineStyle,
+  Time,
+} from "lightweight-charts"
 import { Loader2 } from "lucide-react"
 import { useFormContext } from "react-hook-form"
 import {
@@ -55,31 +67,175 @@ export default function PlaceOrderChartCard() {
     return effectiveMarketPrice.multipliedBy(diffPercentage + 1)
   }, [isFixedRate, rate, effectiveMarketPrice, diffPercentage])
 
-  // For TWAP, calculate upper and lower limits
-  const twapLimitUpper = useMemo(() => {
-    return effectiveMarketPrice.multipliedBy(diffPercentage + 1)
-  }, [effectiveMarketPrice, diffPercentage])
+  // Calculate chart prices inline - these are simple transformations
+  const getChartPrice = (price: BigNumber) => (inversed ? price.pow(-1) : price)
 
-  const twapLimitLower = useMemo(() => {
-    return effectiveMarketPrice.multipliedBy(1 - diffPercentage)
-  }, [effectiveMarketPrice, diffPercentage])
+  // TWAP limits - memoize since they're used in useEffect dependencies
+  const twapLimitUpper = useMemo(
+    () => effectiveMarketPrice.multipliedBy(diffPercentage + 1),
+    [effectiveMarketPrice, diffPercentage]
+  )
+  const twapLimitLower = useMemo(
+    () => effectiveMarketPrice.multipliedBy(1 - diffPercentage),
+    [effectiveMarketPrice, diffPercentage]
+  )
 
-  // Convert prices back to chart display format (always base/quote for consistency)
-  const chartMarketPrice = useMemo(() => {
-    return inversed ? effectiveMarketPrice.pow(-1) : effectiveMarketPrice
-  }, [effectiveMarketPrice, inversed])
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<[IChartApi, ISeriesApi<"Candlestick">]>(null)
 
-  const chartDiffedPrice = useMemo(() => {
-    return inversed ? diffedPrice.pow(-1) : diffedPrice
-  }, [diffedPrice, inversed])
+  useEffect(() => {
+    if (!chartContainerRef.current || !candlestickPrice) return
+    const chartContainer = chartContainerRef.current
 
-  const chartTwapLimitUpper = useMemo(() => {
-    return inversed ? twapLimitUpper.pow(-1) : twapLimitUpper
-  }, [twapLimitUpper, inversed])
+    const handleResize = () => {
+      chart.applyOptions({ width: chartContainer.clientWidth })
+    }
 
-  const chartTwapLimitLower = useMemo(() => {
-    return inversed ? twapLimitLower.pow(-1) : twapLimitLower
-  }, [twapLimitLower, inversed])
+    const chart = createChart(chartContainerRef.current!, {
+      layout: {
+        background: { color: "#FFFFFF00" },
+        textColor: "#DDD",
+        attributionLogo: false,
+        fontFamily: "Geist",
+      },
+      grid: {
+        vertLines: { color: "#44444455" },
+        horzLines: { color: "#44444455" },
+      },
+      crosshair: {
+        mode: CrosshairMode.MagnetOHLC,
+      },
+      width: chartContainer.clientWidth,
+      height: 300,
+    })
+    chart.timeScale().fitContent()
+    chart.timeScale().applyOptions({
+      borderColor: "#44444455",
+      barSpacing: 10,
+      fixLeftEdge: true,
+      fixRightEdge: true,
+      timeVisible: true,
+      secondsVisible: true,
+    })
+
+    const mainSeries = chart.addSeries(CandlestickSeries, {
+      wickUpColor: "rgb(75, 175, 75)",
+      upColor: "rgb(75, 175, 75)",
+      wickDownColor: "rgb(225, 50, 85)",
+      downColor: "rgb(225, 50, 85)",
+      borderVisible: false,
+      priceFormat: {
+        minMove: 0.0000001,
+        precision: 4,
+      },
+      priceLineVisible: false,
+    })
+
+    // Remove outlier wicks by capping high/low to within 2x the open-close range
+    mainSeries.setData(
+      candlestickPrice.map((item) => {
+        const range = Math.abs(item.close - item.open)
+        const maxRange = range * 3
+        const midPrice = (item.close + item.open) / 2
+        return {
+          close: item.close,
+          open: item.open,
+          high: Math.min(item.high, midPrice + maxRange),
+          low: Math.max(item.low, midPrice - maxRange),
+          time: item.time as Time,
+        }
+      })
+    )
+
+    mainSeries.priceScale().applyOptions({
+      autoScale: true,
+      borderColor: "#44444455",
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.2,
+      },
+    })
+
+    chartRef.current = [chart, mainSeries]
+
+    window.addEventListener("resize", handleResize)
+
+    return () => {
+      window.removeEventListener("resize", handleResize)
+
+      chart.remove()
+    }
+  }, [candlestickPrice])
+
+  const priceRefLineRef = useRef<IPriceLine[]>([])
+  useEffect(() => {
+    if (!chartRef.current) return
+
+    const [chart, series] = chartRef.current
+
+    if (priceRefLineRef.current.length > 0) {
+      priceRefLineRef.current.forEach((line) => {
+        series.removePriceLine(line)
+      })
+    }
+
+    priceRefLineRef.current = []
+
+    if (type === "limit" && diffPercentage !== 0) {
+      priceRefLineRef.current.push(
+        series.createPriceLine({
+          price: getChartPrice(effectiveMarketPrice).toNumber(),
+          title: "Market Price",
+          color: "#6B8EFF",
+          lineStyle: LineStyle.LargeDashed,
+        })
+      )
+      priceRefLineRef.current.push(
+        series.createPriceLine({
+          price: getChartPrice(diffedPrice).toNumber(),
+          title: "Limit Price",
+          color: "#2962FF",
+          lineStyle: LineStyle.Solid,
+        })
+      )
+    } else {
+      priceRefLineRef.current.push(
+        series.createPriceLine({
+          price: getChartPrice(effectiveMarketPrice).toNumber(),
+          title: "Market Price",
+          color: "#2962FF",
+          lineStyle: LineStyle.Solid,
+        })
+      )
+    }
+
+    if (type === "twap") {
+      priceRefLineRef.current.push(
+        series.createPriceLine({
+          price: getChartPrice(twapLimitUpper).toNumber(),
+          title: "TWAP Upper Limit",
+          color: "#2962FF",
+          lineStyle: LineStyle.Solid,
+        })
+      )
+
+      priceRefLineRef.current.push(
+        series.createPriceLine({
+          price: getChartPrice(twapLimitLower).toNumber(),
+          title: "TWAP Lower Limit",
+          color: "#2962FF",
+          lineStyle: LineStyle.Solid,
+        })
+      )
+    }
+  }, [
+    effectiveMarketPrice,
+    chartRef,
+    diffedPrice,
+    twapLimitLower,
+    twapLimitUpper,
+    type,
+  ])
 
   return (
     <Card className="h-min w-full">
@@ -127,166 +283,7 @@ export default function PlaceOrderChartCard() {
             <Loader2 className="stroke-muted-foreground size-6 animate-spin" />
           </div>
         )}
-        <ChartContainer
-          className="h-[300px] w-full"
-          config={{
-            close: {
-              label: "Price",
-              color: "var(--chart-1)",
-            },
-          }}
-        >
-          <AreaChart
-            data={candlestickPrice}
-            margin={{
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-            }}
-          >
-            <YAxis
-              dataKey="close"
-              domain={[
-                (dataMin: number) =>
-                  Math.min(
-                    dataMin,
-                    type === "limit"
-                      ? chartDiffedPrice.toNumber()
-                      : chartTwapLimitLower.toNumber()
-                  ) * 0.995,
-                (dataMax: number) =>
-                  Math.max(dataMax, chartTwapLimitUpper.toNumber()) * 1.01,
-              ]}
-              tickFormatter={(value) => {
-                return formatter.value(value, formatter.decimals(value))
-              }}
-              axisLine={false}
-              tickCount={8}
-            />
-            <XAxis
-              dataKey="time"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => {
-                return formatter.timeShort(value)
-              }}
-            />
-            <defs>
-              <linearGradient id="fillClose" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-close)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-close)"
-                  stopOpacity={0.05}
-                />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid vertical={false} />
-
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, payload) => {
-                    const time = payload?.[0]?.payload?.time
-                    return `At ${formatter.timeShort(time)}`
-                  }}
-                  indicator="line"
-                  valueFormatter={(value) => {
-                    return `${formatter.value(value, formatter.decimals(value))} ${quoteToken.symbol}`
-                  }}
-                />
-              }
-            />
-
-            <Area
-              dataKey="close"
-              type="natural"
-              fill="url(#fillClose)"
-              stroke="var(--color-close)"
-              strokeWidth={1.5}
-            />
-
-            <ReferenceLine
-              key="market-price"
-              y={chartMarketPrice.toNumber()}
-              stroke="var(--primary)"
-              strokeDasharray="3 3"
-              strokeOpacity={diffPercentage === 0 ? 1 : 0.5}
-              label={{
-                fontWeight: 500,
-                opacity: diffPercentage === 0 ? 1 : 0.5,
-                value: `Market Price: ${formatter.value(
-                  chartMarketPrice.toNumber(),
-                  formatter.decimals(chartMarketPrice.toNumber())
-                )}`,
-                position: "insideTopLeft",
-                offset: 5,
-                fill: "var(--primary)",
-              }}
-            />
-
-            {type === "twap" && (
-              <ReferenceLine
-                key="twap-price-upper"
-                y={chartTwapLimitUpper.toNumber()}
-                stroke="white"
-                label={{
-                  fontWeight: 500,
-                  value: `TWAP Upper Limit: ${formatter.value(
-                    chartTwapLimitUpper.toNumber(),
-                    formatter.decimals(chartTwapLimitUpper.toNumber())
-                  )}`,
-                  position: "insideBottomRight",
-                  offset: 5,
-                  fill: "var(--primary)",
-                }}
-              />
-            )}
-            {type === "twap" && (
-              <ReferenceLine
-                key="twap-price-lower"
-                y={chartTwapLimitLower.toNumber()}
-                stroke="white"
-                label={{
-                  fontWeight: 500,
-                  value: `TWAP Lower Limit: ${formatter.value(
-                    chartTwapLimitLower.toNumber(),
-                    formatter.decimals(chartTwapLimitLower.toNumber())
-                  )}`,
-                  position: "insideBottomRight",
-                  offset: 5,
-                  fill: "var(--primary)",
-                }}
-              />
-            )}
-            {type === "limit" && diffPercentage !== 0 && (
-              <ReferenceLine
-                key="limit-price"
-                y={chartDiffedPrice.toNumber()}
-                stroke="var(--primary)"
-                label={{
-                  fontWeight: 500,
-                  value: `Limit Price: ${formatter.value(
-                    chartDiffedPrice.toNumber(),
-                    formatter.decimals(chartDiffedPrice.toNumber())
-                  )}`,
-                  position: "insideBottomRight",
-                  offset: 5,
-                  fill: "var(--primary)",
-                }}
-              />
-            )}
-          </AreaChart>
-        </ChartContainer>
+        <div ref={chartContainerRef} className="h-[300px] w-full" />
       </CardContent>
     </Card>
   )
