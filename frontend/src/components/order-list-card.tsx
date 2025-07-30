@@ -159,7 +159,7 @@ export default function OrderListCard() {
                 const totalParts = order.numberOfParts
                 const estimatedQuoteAmount =
                   (order.baseTokenAmount * order.marketPrice) /
-                  (1 - order.priceProtection.toNumber() / 100)
+                  (1 - order.priceProtection / 100)
 
                 return (
                   <TableRow key={order.id}>
@@ -218,7 +218,7 @@ export default function OrderListCard() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-muted-foreground h-24 text-center"
                 >
                   No active TWAP orders

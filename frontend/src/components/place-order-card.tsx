@@ -280,7 +280,7 @@ export default function PlaceOrderCard() {
             <div className="flex-1" />
             <div className="text-muted-foreground flex items-center gap-1 text-xs">
               <Wallet className="size-3" />
-              {formatter.valueLocale(internalBalance[baseTokenA])}
+              {formatter.valueLocale(internalBalance[baseTokenA] || 0)}
               <Button
                 type="button"
                 variant="outline"
