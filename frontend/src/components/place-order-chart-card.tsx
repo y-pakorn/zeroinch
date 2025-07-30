@@ -184,12 +184,13 @@ export default function PlaceOrderChartCard() {
                 <stop
                   offset="95%"
                   stopColor="var(--color-close)"
-                  stopOpacity={0.1}
+                  stopOpacity={0.05}
                 />
               </linearGradient>
             </defs>
 
             <CartesianGrid vertical={false} />
+
             <ChartTooltip
               cursor={false}
               content={
@@ -205,11 +206,13 @@ export default function PlaceOrderChartCard() {
                 />
               }
             />
+
             <Area
               dataKey="close"
               type="natural"
               fill="url(#fillClose)"
               stroke="var(--color-close)"
+              strokeWidth={1.5}
             />
 
             <ReferenceLine
@@ -219,6 +222,7 @@ export default function PlaceOrderChartCard() {
               strokeDasharray="3 3"
               strokeOpacity={diffPercentage === 0 ? 1 : 0.5}
               label={{
+                fontWeight: 500,
                 opacity: diffPercentage === 0 ? 1 : 0.5,
                 value: `Market Price: ${formatter.value(
                   chartMarketPrice.toNumber(),
@@ -236,6 +240,7 @@ export default function PlaceOrderChartCard() {
                 y={chartTwapLimitUpper.toNumber()}
                 stroke="white"
                 label={{
+                  fontWeight: 500,
                   value: `TWAP Upper Limit: ${formatter.value(
                     chartTwapLimitUpper.toNumber(),
                     formatter.decimals(chartTwapLimitUpper.toNumber())
@@ -252,6 +257,7 @@ export default function PlaceOrderChartCard() {
                 y={chartTwapLimitLower.toNumber()}
                 stroke="white"
                 label={{
+                  fontWeight: 500,
                   value: `TWAP Lower Limit: ${formatter.value(
                     chartTwapLimitLower.toNumber(),
                     formatter.decimals(chartTwapLimitLower.toNumber())
@@ -268,6 +274,7 @@ export default function PlaceOrderChartCard() {
                 y={chartDiffedPrice.toNumber()}
                 stroke="var(--primary)"
                 label={{
+                  fontWeight: 500,
                   value: `Limit Price: ${formatter.value(
                     chartDiffedPrice.toNumber(),
                     formatter.decimals(chartDiffedPrice.toNumber())

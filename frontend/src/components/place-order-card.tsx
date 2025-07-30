@@ -487,7 +487,7 @@ export default function PlaceOrderCard() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="flex items-center gap-2 space-y-1">
+            <CardContent className="flex items-center gap-2 space-y-1 *:mb-0">
               <div className="text-muted-foreground text-sm">Expiry</div>
               <div className="flex-1" />
               {[
