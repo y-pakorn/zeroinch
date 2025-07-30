@@ -36,12 +36,10 @@ export const PlaceOrderProvider = ({
 }: {
   children: React.ReactNode
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
   const {
     watch,
     setValue,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isSubmitting },
   } = useFormContext<PlaceOrderFormData>()
   const {
     baseTokenA,
@@ -134,7 +132,7 @@ export const PlaceOrderProvider = ({
           baseTokenAmount: data.baseTokenAmount,
           minQuoteTokenAmount: data.quoteTokenAmount,
           marketPrice: marketPrice.toNumber(),
-          value: data.baseTokenAmount * (prices?.[data.baseTokenA] || 0),
+          value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
           createdAt: Date.now(),
           expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
           diffPercentage: data.diffPercentage,
@@ -150,7 +148,7 @@ export const PlaceOrderProvider = ({
           quoteTokenA: data.quoteTokenA,
           baseTokenAmount: data.baseTokenAmount,
           marketPrice: marketPrice.toNumber(),
-          value: data.baseTokenAmount * (prices?.[data.baseTokenA] || 0),
+          value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
           createdAt: Date.now(),
           endAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
           numberOfParts: data.numberOfParts,

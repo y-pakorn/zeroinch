@@ -2,7 +2,7 @@ import "@/styles/globals.css"
 import "@rainbow-me/rainbowkit/styles.css"
 
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Bitcount_Grid_Double, Geist, Geist_Mono } from "next/font/google"
 import { headers } from "next/headers"
 import { GoogleAnalytics } from "@next/third-parties/google"
 import { Analytics } from "@vercel/analytics/next"
@@ -15,6 +15,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "@/components/providers"
 import { ThemeProvider } from "@/components/theme-provider"
 
+const serif = Bitcount_Grid_Double({
+  subsets: ["latin"],
+  variable: "--font-serif",
+})
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" })
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
@@ -81,7 +85,8 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         className={cn(
           "bg-background min-h-screen font-sans tracking-tighter antialiased",
           sans.variable,
-          mono.variable
+          mono.variable,
+          serif.variable
         )}
       >
         <Providers initialState={cookieToInitialState("wagmi", cookie)}>

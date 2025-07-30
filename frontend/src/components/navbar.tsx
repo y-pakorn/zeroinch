@@ -7,7 +7,7 @@ import { Button } from "./ui/button"
 export default function Navbar() {
   return (
     <nav className="flex items-center gap-2">
-      <div className="text-xl font-semibold">ZeroInch</div>
+      <div className="font-serif text-3xl">zeroinch</div>
       <div className="flex-1" />
       <InternalAccountButton />
       <DepositWithdrawDialog type="deposit">
