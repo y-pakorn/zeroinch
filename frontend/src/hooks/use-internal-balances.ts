@@ -12,7 +12,7 @@ export const useInternalBalances = () => {
     () =>
       notes.reduce(
         (acc, note) => {
-          acc[note.seed] = note.balance
+          acc[note.address] = note.balance
           return acc
         },
         {} as Record<Address, number>

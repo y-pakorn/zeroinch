@@ -9,9 +9,9 @@ import {
 import BigNumber from "bignumber.js"
 import { useFormContext } from "react-hook-form"
 import { Address } from "viem"
-import { generatePrivateKey } from "viem/accounts"
 
 import { tokens } from "@/config/token"
+import { getRandomHex } from "@/lib/crypto"
 import { PlaceOrderFormData } from "@/lib/schema"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { useAccountStore } from "@/stores/account"
@@ -127,7 +127,7 @@ export const PlaceOrderProvider = ({
     (data: PlaceOrderFormData) => {
       if (data.type === "limit") {
         addOrder({
-          id: generatePrivateKey(),
+          id: getRandomHex(),
           type: "limit",
           baseTokenA: data.baseTokenA,
           quoteTokenA: data.quoteTokenA,
@@ -144,7 +144,7 @@ export const PlaceOrderProvider = ({
 
       if (data.type === "twap") {
         addOrder({
-          id: generatePrivateKey(),
+          id: getRandomHex(),
           type: "twap",
           baseTokenA: data.baseTokenA,
           quoteTokenA: data.quoteTokenA,

@@ -1,16 +1,22 @@
-import type BigNumber from "bignumber.js"
 import type { Address, Hex } from "viem"
 
 export interface IAccount {
   seed: Hex
-  notes: Note[]
+  notes: INote[]
   orders: IOrder[]
 }
 
-export interface Note {
-  seed: Hex
+export interface INote {
+  combinedSecret: ICombinedSecret
   balance: number
   address: Address
+  asset_balance: bigint
+  asset_address: bigint
+}
+
+export interface ICombinedSecret {
+  secret: Hex
+  nonce: Hex
 }
 
 export type IOrder = ILimitOrder | ITwapOrder

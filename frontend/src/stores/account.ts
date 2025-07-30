@@ -3,6 +3,7 @@ import { generatePrivateKey } from "viem/accounts"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import { getRandomHex } from "@/lib/crypto"
 import { IAccount, IOrder } from "@/types"
 
 interface IAccountStore {
@@ -15,7 +16,7 @@ export const useAccountStore = create<IAccountStore>()(
   persist(
     (set, get) => ({
       account: {
-        seed: generatePrivateKey(),
+        seed: getRandomHex(),
         notes: [],
         orders: [],
       },
@@ -43,7 +44,7 @@ export const useAccountStore = create<IAccountStore>()(
       },
     }),
     {
-      name: `account-storage-v0.0.01`,
+      name: `account-storage-v0.0.02`,
     }
   )
 )
