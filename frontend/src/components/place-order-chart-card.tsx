@@ -1,3 +1,5 @@
+import { useMemo } from "react"
+import BigNumber from "bignumber.js"
 import { Loader2 } from "lucide-react"
 import { useFormContext } from "react-hook-form"
 import {
@@ -21,8 +23,16 @@ import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group"
 
 export default function PlaceOrderChartCard() {
   const { watch, setValue } = useFormContext<PlaceOrderFormData>()
-  const { type, baseTokenA, quoteTokenA, selectedInterval, diffPercentage } =
-    watch()
+  const {
+    type,
+    baseTokenA,
+    quoteTokenA,
+    selectedInterval,
+    diffPercentage,
+    rate,
+    isFixedRate,
+    inversed,
+  } = watch()
 
   const { data: candlestickPrice, isLoading: isLoadingCandlestickPrice } =
     useCandlestickPrice({
@@ -33,8 +43,43 @@ export default function PlaceOrderChartCard() {
 
   const { marketPrice, baseToken, quoteToken } = usePlaceOrder()
 
-  const twapLimitUpper = marketPrice.multipliedBy(1 + diffPercentage)
-  const twapLimitLower = marketPrice.multipliedBy(1 - diffPercentage)
+  // Calculate effective market price and diffed price
+  const effectiveMarketPrice = useMemo(() => {
+    return inversed ? marketPrice.pow(-1) : marketPrice
+  }, [marketPrice, inversed])
+
+  const diffedPrice = useMemo(() => {
+    if (isFixedRate) {
+      return new BigNumber(rate)
+    }
+    return effectiveMarketPrice.multipliedBy(diffPercentage + 1)
+  }, [isFixedRate, rate, effectiveMarketPrice, diffPercentage])
+
+  // For TWAP, calculate upper and lower limits
+  const twapLimitUpper = useMemo(() => {
+    return effectiveMarketPrice.multipliedBy(diffPercentage + 1)
+  }, [effectiveMarketPrice, diffPercentage])
+
+  const twapLimitLower = useMemo(() => {
+    return effectiveMarketPrice.multipliedBy(1 - diffPercentage)
+  }, [effectiveMarketPrice, diffPercentage])
+
+  // Convert prices back to chart display format (always base/quote for consistency)
+  const chartMarketPrice = useMemo(() => {
+    return inversed ? effectiveMarketPrice.pow(-1) : effectiveMarketPrice
+  }, [effectiveMarketPrice, inversed])
+
+  const chartDiffedPrice = useMemo(() => {
+    return inversed ? diffedPrice.pow(-1) : diffedPrice
+  }, [diffedPrice, inversed])
+
+  const chartTwapLimitUpper = useMemo(() => {
+    return inversed ? twapLimitUpper.pow(-1) : twapLimitUpper
+  }, [twapLimitUpper, inversed])
+
+  const chartTwapLimitLower = useMemo(() => {
+    return inversed ? twapLimitLower.pow(-1) : twapLimitLower
+  }, [twapLimitLower, inversed])
 
   return (
     <Card className="h-min w-full">
@@ -106,10 +151,12 @@ export default function PlaceOrderChartCard() {
                 (dataMin: number) =>
                   Math.min(
                     dataMin,
-                    type === "limit" ? dataMin : twapLimitLower.toNumber()
+                    type === "limit"
+                      ? chartDiffedPrice.toNumber()
+                      : chartTwapLimitLower.toNumber()
                   ) * 0.995,
                 (dataMax: number) =>
-                  Math.max(dataMax, twapLimitUpper.toNumber()) * 1.01,
+                  Math.max(dataMax, chartTwapLimitUpper.toNumber()) * 1.01,
               ]}
               tickFormatter={(value) => {
                 return formatter.value(value, formatter.decimals(value))
@@ -167,15 +214,15 @@ export default function PlaceOrderChartCard() {
 
             <ReferenceLine
               key="market-price"
-              y={marketPrice.toNumber()}
+              y={chartMarketPrice.toNumber()}
               stroke="var(--primary)"
               strokeDasharray="3 3"
               strokeOpacity={diffPercentage === 0 ? 1 : 0.5}
               label={{
                 opacity: diffPercentage === 0 ? 1 : 0.5,
                 value: `Market Price: ${formatter.value(
-                  marketPrice.toNumber(),
-                  formatter.decimals(marketPrice.toNumber())
+                  chartMarketPrice.toNumber(),
+                  formatter.decimals(chartMarketPrice.toNumber())
                 )}`,
                 position: "insideTopLeft",
                 offset: 5,
@@ -186,12 +233,12 @@ export default function PlaceOrderChartCard() {
             {type === "twap" && (
               <ReferenceLine
                 key="twap-price-upper"
-                y={twapLimitUpper.toNumber()}
+                y={chartTwapLimitUpper.toNumber()}
                 stroke="white"
                 label={{
                   value: `TWAP Upper Limit: ${formatter.value(
-                    twapLimitUpper.toNumber(),
-                    formatter.decimals(twapLimitUpper.toNumber())
+                    chartTwapLimitUpper.toNumber(),
+                    formatter.decimals(chartTwapLimitUpper.toNumber())
                   )}`,
                   position: "insideBottomRight",
                   offset: 5,
@@ -202,12 +249,12 @@ export default function PlaceOrderChartCard() {
             {type === "twap" && (
               <ReferenceLine
                 key="twap-price-lower"
-                y={twapLimitLower.toNumber()}
+                y={chartTwapLimitLower.toNumber()}
                 stroke="white"
                 label={{
                   value: `TWAP Lower Limit: ${formatter.value(
-                    twapLimitLower.toNumber(),
-                    formatter.decimals(twapLimitLower.toNumber())
+                    chartTwapLimitLower.toNumber(),
+                    formatter.decimals(chartTwapLimitLower.toNumber())
                   )}`,
                   position: "insideBottomRight",
                   offset: 5,
@@ -218,10 +265,13 @@ export default function PlaceOrderChartCard() {
             {type === "limit" && diffPercentage !== 0 && (
               <ReferenceLine
                 key="limit-price"
-                y={twapLimitUpper.toNumber()}
+                y={chartDiffedPrice.toNumber()}
                 stroke="var(--primary)"
                 label={{
-                  value: "Limit Price",
+                  value: `Limit Price: ${formatter.value(
+                    chartDiffedPrice.toNumber(),
+                    formatter.decimals(chartDiffedPrice.toNumber())
+                  )}`,
                   position: "insideBottomRight",
                   offset: 5,
                   fill: "var(--primary)",

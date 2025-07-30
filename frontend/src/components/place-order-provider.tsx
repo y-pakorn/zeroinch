@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react"
@@ -39,9 +40,19 @@ export const PlaceOrderProvider = ({
 
   const {
     watch,
+    setValue,
     formState: { errors, isValid },
   } = useFormContext<PlaceOrderFormData>()
-  const { baseTokenA, quoteTokenA, baseTokenAmount, quoteTokenAmount } = watch()
+  const {
+    baseTokenA,
+    quoteTokenA,
+    baseTokenAmount,
+    quoteTokenAmount,
+    diffPercentage,
+    rate,
+    inversed,
+    isFixedRate,
+  } = watch()
 
   const { data: prices } = useMarketPrice({
     queryOptions: {
@@ -57,6 +68,42 @@ export const PlaceOrderProvider = ({
       prices?.[quoteTokenA] || 1
     )
   }, [baseTokenA, quoteTokenA, prices])
+
+  // Calculate effective market price based on inverse state
+  const effectiveMarketPrice = useMemo(() => {
+    return inversed ? marketPrice.pow(-1) : marketPrice
+  }, [marketPrice, inversed])
+
+  // Update rate/diffPercentage when market price changes
+  useEffect(() => {
+    if (marketPrice.isZero()) return
+
+    if (isFixedRate) {
+      // Fixed rate mode: calculate diffPercentage from rate
+      if (rate > 0) {
+        const newDiffPercentage = effectiveMarketPrice.isZero()
+          ? 0
+          : new BigNumber(rate)
+              .minus(effectiveMarketPrice)
+              .div(effectiveMarketPrice)
+              .toNumber()
+        setValue("diffPercentage", newDiffPercentage)
+      }
+    } else {
+      // Fixed diffPercentage mode: calculate rate from diffPercentage
+      const newRate = effectiveMarketPrice
+        .multipliedBy(diffPercentage + 1)
+        .toNumber()
+      setValue("rate", newRate)
+    }
+  }, [
+    marketPrice,
+    effectiveMarketPrice,
+    isFixedRate,
+    rate,
+    diffPercentage,
+    setValue,
+  ])
 
   const submit = useMemo(() => {
     const hasErrors = Object.keys(errors).length > 0
@@ -91,6 +138,7 @@ export const PlaceOrderProvider = ({
           createdAt: Date.now(),
           expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
           diffPercentage: data.diffPercentage,
+          rate: data.rate,
         })
       }
 

@@ -1,3 +1,4 @@
+import type BigNumber from "bignumber.js"
 import type { Address, Hex } from "viem"
 
 export interface IAccount {
@@ -39,6 +40,7 @@ export interface ILimitOrder {
   expiredAt: number
   createdAt: number
   diffPercentage: number
+  rate: number
   filled?: {
     at: number
     txHash: Hex

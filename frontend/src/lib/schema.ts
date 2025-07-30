@@ -1,4 +1,5 @@
-import { Address } from "viem"
+import BigNumber from "bignumber.js"
+import type { Address } from "viem"
 import { z } from "zod"
 
 export const placeOrderFormSchema = z.object({
@@ -17,6 +18,7 @@ export const placeOrderFormSchema = z.object({
     .gt(0, "Quote token amount must be greater than 0"),
   selectedInterval: z.union([z.literal(300), z.literal(900), z.literal(3600)]),
   diffPercentage: z.number(),
+  rate: z.number(),
   inversed: z.boolean(),
   expiry: z.number().positive("Expiry must be positive"),
   numberOfParts: z
@@ -24,6 +26,7 @@ export const placeOrderFormSchema = z.object({
     .int()
     .min(2, "Must have at least 2 parts")
     .max(100, "Cannot exceed 100 parts"),
+  isFixedRate: z.boolean(), // true = user set fixed rate, false = user set fixed diffPercentage
 })
 
 export type PlaceOrderFormData = z.infer<typeof placeOrderFormSchema>

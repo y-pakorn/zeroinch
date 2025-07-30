@@ -159,7 +159,7 @@ export default function OrderListCard() {
                 const totalParts = order.numberOfParts
                 const estimatedQuoteAmount =
                   (order.baseTokenAmount * order.marketPrice) /
-                  (1 - order.priceProtection / 100)
+                  (1 - order.priceProtection.toNumber() / 100)
 
                 return (
                   <TableRow key={order.id}>

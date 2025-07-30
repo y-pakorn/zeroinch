@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import BigNumber from "bignumber.js"
 import { FormProvider, useForm } from "react-hook-form"
 import { Address } from "viem"
 
@@ -25,9 +26,11 @@ export default function Home() {
       quoteTokenAmount: 0,
       selectedInterval: 900,
       diffPercentage: 0,
+      rate: 0,
       inversed: false,
       expiry: 24,
       numberOfParts: 2,
+      isFixedRate: false, // Start with fixed diffPercentage mode
     },
   })
 

@@ -34,6 +34,8 @@ export default function PlaceOrderCard() {
     expiry,
     numberOfParts,
     type,
+    rate,
+    isFixedRate,
   } = watch()
 
   const { marketPrice, baseToken, quoteToken, prices, submit, handleSubmit } =
@@ -45,25 +47,48 @@ export default function PlaceOrderCard() {
   const [selectQuoteTokenDialogOpen, setSelectQuoteTokenDialogOpen] =
     useState(false)
 
-  // Calculate diffed prices
-  const diffedPrice = !inversed
-    ? marketPrice.multipliedBy(1 + diffPercentage)
-    : marketPrice.pow(-1).multipliedBy(1 + diffPercentage)
+  // Calculate effective market price based on inverse state
+  const effectiveMarketPrice = useMemo(() => {
+    return inversed ? marketPrice.pow(-1) : marketPrice
+  }, [marketPrice, inversed])
+
+  // Calculate diffed prices - use rate if in fixed rate mode, otherwise calculate from diffPercentage
+  const diffedPrice = useMemo(() => {
+    if (isFixedRate) {
+      return new BigNumber(rate)
+    }
+    return effectiveMarketPrice.multipliedBy(diffPercentage + 1)
+  }, [isFixedRate, rate, effectiveMarketPrice, diffPercentage])
+
+  // Calculate baseDiffedPrice for amount calculations (always in base/quote terms)
+  const baseDiffedPrice = useMemo(() => {
+    if (inversed) {
+      // If we're showing inverted price, but need base/quote for calculations
+      return diffedPrice.pow(-1)
+    }
+    return diffedPrice
+  }, [diffedPrice, inversed])
 
   // Handle interdependent calculations
   useEffect(() => {
-    // When diffPercentage changes, recalculate quote token amount
-    if (type === "limit" && quoteTokenAmount > 0) {
-      const newPrice = marketPrice.multipliedBy(1 + diffPercentage)
-      const newQuoteTokenAmount = newPrice.multipliedBy(baseTokenAmount)
+    // When diffPercentage or rate changes, recalculate quote token amount
+    if (type === "limit" && baseTokenAmount > 0) {
+      const newQuoteTokenAmount = baseDiffedPrice.multipliedBy(baseTokenAmount)
       setValue("quoteTokenAmount", newQuoteTokenAmount.toNumber())
     }
 
-    if (type === "twap" && quoteTokenAmount > 0) {
+    if (type === "twap" && baseTokenAmount > 0) {
       const newQuoteTokenAmount = marketPrice.multipliedBy(baseTokenAmount)
       setValue("quoteTokenAmount", newQuoteTokenAmount.toNumber())
     }
-  }, [diffPercentage, marketPrice])
+  }, [
+    diffedPrice,
+    baseDiffedPrice,
+    marketPrice,
+    baseTokenAmount,
+    type,
+    setValue,
+  ])
 
   // Helper function to handle amount changes
   const handleBaseAmountChange = (
@@ -71,7 +96,7 @@ export default function PlaceOrderCard() {
     source: string
   ) => {
     if (value && source === "event") {
-      const quoteAmount = diffedPrice.multipliedBy(value).toNumber()
+      const quoteAmount = baseDiffedPrice.multipliedBy(value).toNumber()
       setValue("baseTokenAmount", value || 0, {
         shouldValidate: true,
       })
@@ -89,7 +114,7 @@ export default function PlaceOrderCard() {
     source: string
   ) => {
     if (value && source === "event") {
-      const baseAmount = diffedPrice.pow(-1).multipliedBy(value).toNumber()
+      const baseAmount = baseDiffedPrice.pow(-1).multipliedBy(value).toNumber()
       setValue("quoteTokenAmount", value || 0)
       setValue("baseTokenAmount", baseAmount)
     }
@@ -105,24 +130,31 @@ export default function PlaceOrderCard() {
     setValue("quoteTokenA", currentValues.baseTokenA)
     setValue("baseTokenAmount", currentValues.quoteTokenAmount)
     setValue("quoteTokenAmount", currentValues.baseTokenAmount)
+    setValue("inversed", !currentValues.inversed)
   }
 
   // Helper function to handle price input changes
   const handlePriceChange = (value: number | undefined, source: string) => {
     if (source === "event") {
-      if (!value) {
+      if (!value || value <= 0) {
+        setValue("rate", 0)
         setValue("diffPercentage", 0)
+        setValue("isFixedRate", false)
         return
       }
 
-      // Calculate the percentage difference from market price
-      const price = !inversed ? marketPrice : marketPrice.pow(-1)
-      const newPercentage = new BigNumber(value)
-        .minus(price)
-        .div(price)
-        .toNumber()
+      // Set fixed rate mode and update rate
+      setValue("isFixedRate", true)
+      setValue("rate", value)
 
-      setValue("diffPercentage", newPercentage)
+      // Calculate diffPercentage from the new rate
+      const newDiffPercentage = effectiveMarketPrice.isZero()
+        ? 0
+        : new BigNumber(value)
+            .minus(effectiveMarketPrice)
+            .div(effectiveMarketPrice)
+            .toNumber()
+      setValue("diffPercentage", newDiffPercentage)
     }
   }
 
@@ -136,13 +168,21 @@ export default function PlaceOrderCard() {
     if (type === "twap") {
       setValue("numberOfParts", 2)
       setValue("diffPercentage", 0.01)
+      setValue("isFixedRate", false)
       setValue("expiry", 1)
     }
 
     if (type === "limit") {
       setValue("diffPercentage", 0)
+      setValue("isFixedRate", false)
       setValue("expiry", 24)
     }
+  }
+
+  // Helper function to set preset diffPercentage (fixed diffPercentage mode)
+  const setPresetDiffPercentage = (percentage: number) => {
+    setValue("diffPercentage", percentage)
+    setValue("isFixedRate", false)
   }
 
   return (
@@ -170,6 +210,7 @@ export default function PlaceOrderCard() {
       </div>
       <Card className="relative">
         <Button
+          type="button"
           className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 translate-y-[calc(50%+0.25rem)]"
           size="iconXs"
           variant="default"
@@ -209,6 +250,7 @@ export default function PlaceOrderCard() {
               decimalScale={baseToken.decimals}
             />
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => setSelectBaseTokenDialogOpen(true)}
@@ -237,12 +279,13 @@ export default function PlaceOrderCard() {
               <Wallet className="size-3" />
               {formatter.valueLocale(1000000)}
               <Button
+                type="button"
                 variant="outline"
                 size="2xs"
                 onClick={() => {
                   const balance = 500000
                   setValue("baseTokenAmount", balance)
-                  const quoteTokenAmount = diffedPrice
+                  const quoteTokenAmount = baseDiffedPrice
                     .multipliedBy(balance)
                     .toNumber()
                   setValue("quoteTokenAmount", quoteTokenAmount)
@@ -251,12 +294,13 @@ export default function PlaceOrderCard() {
                 Half
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 size="2xs"
                 onClick={() => {
                   const balance = 1000000
                   setValue("baseTokenAmount", balance)
-                  const quoteTokenAmount = diffedPrice
+                  const quoteTokenAmount = baseDiffedPrice
                     .multipliedBy(balance)
                     .toNumber()
                   setValue("quoteTokenAmount", quoteTokenAmount)
@@ -304,6 +348,7 @@ export default function PlaceOrderCard() {
               decimalScale={quoteToken.decimals}
             />
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => setSelectQuoteTokenDialogOpen(true)}
@@ -345,6 +390,7 @@ export default function PlaceOrderCard() {
                 />{" "}
                 {!inversed ? baseToken.symbol : quoteToken.symbol} is worth{" "}
                 <Button
+                  type="button"
                   variant="ghost"
                   size="iconXs"
                   className="ml-auto"
@@ -364,9 +410,9 @@ export default function PlaceOrderCard() {
                   onValueChange={(value, { source }) => {
                     handlePriceChange(value.floatValue, source)
                   }}
-                  decimalScale={
-                    !inversed ? quoteToken.decimals : baseToken.decimals
-                  }
+                  decimalScale={Math.floor(
+                    (quoteToken.decimals + baseToken.decimals) / 2
+                  )}
                 />
                 <img
                   src={
@@ -386,7 +432,7 @@ export default function PlaceOrderCard() {
                   {
                     show: ![0, 0.005, 0.01, 0.05, 0.1].includes(diffPercentage),
                     label: formatter.percentage(
-                      diffPercentage,
+                      !inversed ? diffPercentage : -diffPercentage,
                       formatter.decimalsTight(diffPercentage)
                     ),
                     value: diffPercentage,
@@ -423,7 +469,7 @@ export default function PlaceOrderCard() {
                       size="xs"
                       onClick={() => {
                         if (item.show) return
-                        setValue("diffPercentage", item.value)
+                        setPresetDiffPercentage(item.value)
                       }}
                     >
                       {item.label}
@@ -456,6 +502,7 @@ export default function PlaceOrderCard() {
                 },
               ].map((item) => (
                 <Button
+                  type="button"
                   key={item.label}
                   variant={expiry === item.value ? "default" : "outline"}
                   size="xs"
@@ -495,12 +542,13 @@ export default function PlaceOrderCard() {
                 },
               ].map((item) => (
                 <Button
+                  type="button"
                   key={item.label}
                   variant={
                     diffPercentage === item.value ? "default" : "outline"
                   }
                   size="xs"
-                  onClick={() => setValue("diffPercentage", item.value)}
+                  onClick={() => setPresetDiffPercentage(item.value)}
                 >
                   {item.label}
                 </Button>
@@ -530,6 +578,7 @@ export default function PlaceOrderCard() {
                 },
               ].map((item) => (
                 <Button
+                  type="button"
                   key={item.label}
                   variant={expiry === item.value ? "default" : "outline"}
                   size="xs"
@@ -550,6 +599,7 @@ export default function PlaceOrderCard() {
                 {formatter.value(numberOfParts)}
               </div>
               <Button
+                type="button"
                 variant="outline"
                 size="iconXs"
                 disabled={numberOfParts === 2}
@@ -560,6 +610,7 @@ export default function PlaceOrderCard() {
                 <ChevronDown />
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 size="iconXs"
                 disabled={numberOfParts === 100}
@@ -611,7 +662,16 @@ export default function PlaceOrderCard() {
           </div>
         </>
       )}
+      {diffPercentage < 0 && (
+        <Card>
+          <CardContent>
+            You are selling at a loss, Consider using{" "}
+            <span className="font-semibold">Market Price</span>
+          </CardContent>
+        </Card>
+      )}
       <Button
+        type="submit"
         className="w-full"
         size="lg"
         disabled={submit.isDisabled}
