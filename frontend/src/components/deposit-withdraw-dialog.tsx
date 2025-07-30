@@ -59,8 +59,6 @@ export function DepositWithdrawDialog({
 
   const { addNote, removeNotes, calculateNotes, account } = useAccountStore()
 
-  console.log(account.notes)
-
   const onSubmit = useCallback(
     (data: DepositWithdrawFormData) => {
       if (type === "deposit") {
@@ -70,18 +68,19 @@ export function DepositWithdrawDialog({
         toast.success("Deposit successfully")
       } else {
         const { notes, totalBalance } = calculateNotes(data.tokenA, data.amount)
-        if (totalBalance < amount) {
+        if (totalBalance < data.amount) {
           toast.error("Insufficient internal balance")
           return
         }
 
         const noteHashes = notes.map((note) => note.hash)
-        const remainingBalance = totalBalance - amount
+        removeNotes(noteHashes)
+
+        const remainingBalance = totalBalance - data.amount
         if (remainingBalance > 0) {
           addNote(tokenA, remainingBalance)
         }
 
-        removeNotes(noteHashes)
         setOpen(false)
         form.reset()
         toast.success("Withdraw successfully")
@@ -143,6 +142,7 @@ export function DepositWithdrawDialog({
             />
 
             <Button
+              type="button"
               variant="ghost"
               size="lg"
               onClick={() => setOpenTokenDialog(true)}
@@ -172,6 +172,7 @@ export function DepositWithdrawDialog({
                 />
                 {address && (
                   <Button
+                    type="button"
                     variant="outline"
                     size="xs"
                     onClick={() => form.setValue("address", address)}
@@ -191,6 +192,7 @@ export function DepositWithdrawDialog({
                   {address}
                 </span>{" "}
                 <Button
+                  type="button"
                   variant="ghost"
                   size="iconXs"
                   onClick={() => disconnectAsync()}
@@ -216,6 +218,7 @@ export function DepositWithdrawDialog({
                   <>
                     {" "}
                     <Button
+                      type="button"
                       variant="outline"
                       size="xs"
                       disabled={!balance}
@@ -235,6 +238,7 @@ export function DepositWithdrawDialog({
                       Half
                     </Button>
                     <Button
+                      type="button"
                       variant="outline"
                       size="xs"
                       disabled={!balance}
@@ -266,37 +270,29 @@ export function DepositWithdrawDialog({
                 <>
                   {" "}
                   <Button
+                    type="button"
                     variant="outline"
                     size="xs"
-                    disabled={!balance}
+                    disabled={!internalBalances[tokenA]}
                     onClick={() => {
-                      if (!balance) return
-                      form.setValue(
-                        "amount",
-                        new BigNumber(balance.value)
-                          .shiftedBy(-balance.decimals)
-                          .toNumber() / 2,
-                        {
-                          shouldValidate: true,
-                        }
-                      )
+                      if (!internalBalances[tokenA]) return
+                      form.setValue("amount", internalBalances[tokenA] / 2, {
+                        shouldValidate: true,
+                      })
                     }}
                   >
                     Half
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     size="xs"
-                    disabled={!balance}
+                    disabled={!internalBalances[tokenA]}
                     onClick={() => {
-                      if (!balance) return
-                      form.setValue(
-                        "amount",
-                        new BigNumber(balance.value)
-                          .shiftedBy(-balance.decimals)
-                          .toNumber(),
-                        { shouldValidate: true }
-                      )
+                      if (!internalBalances[tokenA]) return
+                      form.setValue("amount", internalBalances[tokenA], {
+                        shouldValidate: true,
+                      })
                     }}
                   >
                     Max

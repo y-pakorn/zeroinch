@@ -12,7 +12,9 @@ export const useInternalBalances = () => {
     () =>
       notes.reduce(
         (acc, note) => {
-          acc[note.address] = note.balance
+          if (note.balance > 0) {
+            acc[note.address] = (acc[note.address] || 0) + note.balance
+          }
           return acc
         },
         {} as Record<Address, number>

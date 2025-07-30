@@ -1,5 +1,6 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit"
 import { getConnections } from "@wagmi/core"
+import { parseAbi } from "viem"
 import { cookieStorage, createStorage } from "wagmi"
 
 import { env } from "@/env.mjs"

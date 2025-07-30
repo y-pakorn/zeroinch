@@ -33,7 +33,7 @@ export interface IToken {
   symbol: string
   name: string
   decimals: number
-  logoURI: string | null
+  logoURI?: string
   providers: string[]
   eip2612: boolean
   isFoT: boolean

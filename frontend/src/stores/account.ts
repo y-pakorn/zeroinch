@@ -90,7 +90,7 @@ export const useAccountStore = create<IAccountStore>()(
         const result: INote[] = []
         let currentBalance = balance
         for (const note of sortedNotes) {
-          if (currentBalance >= note.balance) {
+          if (currentBalance > 0) {
             result.push(note)
             currentBalance -= note.balance
           }
