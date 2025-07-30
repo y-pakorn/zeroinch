@@ -125,27 +125,32 @@ export function DepositWithdrawDialog({
               <ChevronDown className="size-5" />
             </Button>
           </div>
-          <div className="text-muted-foreground text-sm">Address</div>
-          <div className="flex items-center gap-2">
-            <TransparentInput
-              {...form.register("address")}
-              className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              placeholder="0x0000000000000000000000000000000000000000"
-            />
-            {address && (
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => form.setValue("address", address)}
-              >
-                Use Wallet Address
-              </Button>
-            )}
-          </div>
+
+          {type === "withdraw" && (
+            <>
+              <div className="text-muted-foreground text-sm">Address</div>
+              <div className="flex items-center gap-2">
+                <TransparentInput
+                  {...form.register("address")}
+                  className="h-10 w-full text-3xl! font-semibold tracking-[-0.05em]"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  placeholder="0x0000000000000000000000000000000000000000"
+                />
+                {address && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => form.setValue("address", address)}
+                  >
+                    Use Wallet Address
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="space-y-1">
             {address && (
@@ -226,6 +231,47 @@ export function DepositWithdrawDialog({
               <span className="text-muted-foreground truncate">
                 {internalBalances[tokenA] || "0"}
               </span>
+              {type === "withdraw" && (
+                <>
+                  {" "}
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={!balance}
+                    onClick={() => {
+                      if (!balance) return
+                      form.setValue(
+                        "amount",
+                        new BigNumber(balance.value)
+                          .shiftedBy(-balance.decimals)
+                          .toNumber() / 2,
+                        {
+                          shouldValidate: true,
+                        }
+                      )
+                    }}
+                  >
+                    Half
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={!balance}
+                    onClick={() => {
+                      if (!balance) return
+                      form.setValue(
+                        "amount",
+                        new BigNumber(balance.value)
+                          .shiftedBy(-balance.decimals)
+                          .toNumber(),
+                        { shouldValidate: true }
+                      )
+                    }}
+                  >
+                    Max
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           <Button
