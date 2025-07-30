@@ -671,9 +671,9 @@ export default function PlaceOrderCard() {
       )}
       {diffPercentage < 0 && (
         <Card>
-          <CardContent>
+          <CardContent className="text-sm">
             You are selling at a loss, Consider using{" "}
-            <span className="font-semibold">Market Price</span>
+            <span className="font-semibold">Market Price</span>.
           </CardContent>
         </Card>
       )}
