@@ -460,6 +460,7 @@ export default function PlaceOrderCard() {
                 ].map((item) =>
                   item.show !== undefined && !item.show ? null : (
                     <Button
+                      type="button"
                       key={item.label}
                       variant={
                         item.show || diffPercentage === item.value
