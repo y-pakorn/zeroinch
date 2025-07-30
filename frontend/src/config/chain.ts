@@ -1,3 +1,3 @@
-import { base } from "viem/chains"
+import { optimism } from "viem/chains"
 
-export const chain = base
+export const chain = optimism

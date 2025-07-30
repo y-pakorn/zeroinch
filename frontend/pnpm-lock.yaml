@@ -59,9 +59,6 @@ importers:
       '@wagmi/core':
         specifier: ^2.18.0
         version: 2.18.0(@tanstack/query-core@5.83.0)(@types/react@19.1.8)(react@19.1.0)(typescript@5.8.3)(use-sync-external-store@1.4.0(react@19.1.0))(viem@2.33.1(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.0.10))
-      '@zkpassport/poseidon2':
-        specifier: ^0.6.2
-        version: 0.6.2
       axios:
         specifier: ^1.11.0
         version: 1.11.0
@@ -98,6 +95,9 @@ importers:
       numbro:
         specifier: ^2.5.0
         version: 2.5.0
+      poseidon-lite:
+        specifier: ^0.3.0
+        version: 0.3.0
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -1688,9 +1688,6 @@ packages:
   '@walletconnect/window-metadata@1.0.1':
     resolution: {integrity: sha512-9koTqyGrM2cqFRW517BPY/iEtUDx2r1+Pwwu5m7sJ7ka79wi3EyqhqcICk/yDmv6jAS1rjKgTKXlEhanYjijcA==}
 
-  '@zkpassport/poseidon2@0.6.2':
-    resolution: {integrity: sha512-6sFHX9kAcrmDmBEEndvjZ8DA9FomunirQ5oCV6oD7bqr/lP0n0OBSRn86SZgQBXwRR+vq7sk16y31OgRBIOJ5Q==}
-
   abitype@1.0.8:
     resolution: {integrity: sha512-ZeiI6h3GnW06uYDLx0etQtX/p8E24UaHHBj57RSjK7YBFe7iuVn07EDpOeP451D06sF27VOz9JJPlIKJmXgkEg==}
     peerDependencies:
@@ -3163,6 +3160,9 @@ packages:
   pony-cause@2.1.11:
     resolution: {integrity: sha512-M7LhCsdNbNgiLYiP4WjsfLUuFmCfnjdF6jKe2R9NKl4WFN+HZPGHJZ9lnLP7f9ZnKe3U9nuWD0szirmj+migUg==}
     engines: {node: '>=12.0.0'}
+
+  poseidon-lite@0.3.0:
+    resolution: {integrity: sha512-ilJj4MIve4uBEG7SrtPqUUNkvpJ/pLVbndxa0WvebcQqeIhe+h72JR4g0EvwchUzm9sOQDlOjiDNmRAgxNZl4A==}
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -6317,8 +6317,6 @@ snapshots:
       '@walletconnect/window-getters': 1.0.1
       tslib: 1.14.1
 
-  '@zkpassport/poseidon2@0.6.2': {}
-
   abitype@1.0.8(typescript@5.8.3)(zod@3.22.4):
     optionalDependencies:
       typescript: 5.8.3
@@ -7971,6 +7969,8 @@ snapshots:
   pngjs@5.0.0: {}
 
   pony-cause@2.1.11: {}
+
+  poseidon-lite@0.3.0: {}
 
   possible-typed-array-names@1.1.0: {}
 

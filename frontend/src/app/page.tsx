@@ -1,10 +1,9 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import BigNumber from "bignumber.js"
 import { FormProvider, useForm } from "react-hook-form"
-import { Address } from "viem"
 
+import { USDC, WETH } from "@/config/token"
 import { PlaceOrderFormData, placeOrderFormSchema } from "@/lib/schema"
 import Navbar from "@/components/navbar"
 import OrderListCard from "@/components/order-list-card"
@@ -20,9 +19,9 @@ export default function Home() {
     reValidateMode: "onChange",
     defaultValues: {
       type: "limit" as const,
-      baseTokenA: "0x4200000000000000000000000000000000000006" as Address,
+      baseTokenA: WETH,
       baseTokenAmount: 0,
-      quoteTokenA: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" as Address,
+      quoteTokenA: USDC,
       quoteTokenAmount: 0,
       selectedInterval: 900,
       diffPercentage: 0,

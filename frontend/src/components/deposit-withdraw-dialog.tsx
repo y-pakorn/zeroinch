@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
+import { toast } from "sonner"
 import { Address } from "viem"
 import { useAccount, useBalance, useDisconnect, useSwitchAccount } from "wagmi"
 
@@ -21,6 +22,7 @@ import {
   depositWithdrawFormSchema,
 } from "@/lib/schema"
 import { useInternalBalances } from "@/hooks/use-internal-balances"
+import { useAccountStore } from "@/stores/account"
 
 import { SelectTokenDialog } from "./select-token-dialog"
 import { TransparentInput } from "./transparent-input"
@@ -55,9 +57,38 @@ export function DepositWithdrawDialog({
     },
   })
 
-  const onSubmit = useCallback((data: DepositWithdrawFormData) => {
-    console.log(data)
-  }, [])
+  const { addNote, removeNotes, calculateNotes, account } = useAccountStore()
+
+  console.log(account.notes)
+
+  const onSubmit = useCallback(
+    (data: DepositWithdrawFormData) => {
+      if (type === "deposit") {
+        addNote(data.tokenA, data.amount)
+        setOpen(false)
+        form.reset()
+        toast.success("Deposit successfully")
+      } else {
+        const { notes, totalBalance } = calculateNotes(data.tokenA, data.amount)
+        if (totalBalance < amount) {
+          toast.error("Insufficient internal balance")
+          return
+        }
+
+        const noteHashes = notes.map((note) => note.hash)
+        const remainingBalance = totalBalance - amount
+        if (remainingBalance > 0) {
+          addNote(tokenA, remainingBalance)
+        }
+
+        removeNotes(noteHashes)
+        setOpen(false)
+        form.reset()
+        toast.success("Withdraw successfully")
+      }
+    },
+    [type]
+  )
 
   const { amount, tokenA, address: formAddress } = form.watch()
 

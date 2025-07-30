@@ -7,11 +7,17 @@ export interface IAccount {
 }
 
 export interface INote {
-  combinedSecret: ICombinedSecret
+  addedAt: number
+  hash: Hex
   balance: number
   address: Address
-  asset_balance: bigint
-  asset_address: bigint
+  _note: IPrimitiveNote
+}
+
+export interface IPrimitiveNote {
+  combinedSecret: ICombinedSecret
+  asset_balance: string
+  asset_address: Hex
 }
 
 export interface ICombinedSecret {
@@ -32,6 +38,7 @@ export interface IToken {
   eip2612: boolean
   isFoT: boolean
   tags: string[]
+  displayedSymbol?: string
 }
 
 export interface ILimitOrder {

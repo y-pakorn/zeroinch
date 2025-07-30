@@ -14,6 +14,7 @@ import { images } from "@/config/image"
 import { formatter } from "@/lib/formatter"
 import { PlaceOrderFormData } from "@/lib/schema"
 import { cn } from "@/lib/utils"
+import { useInternalBalances } from "@/hooks/use-internal-balances"
 
 import { usePlaceOrder } from "./place-order-provider"
 import { SelectTokenDialog } from "./select-token-dialog"
@@ -185,6 +186,8 @@ export default function PlaceOrderCard() {
     setValue("isFixedRate", false)
   }
 
+  const internalBalance = useInternalBalances()
+
   return (
     <form
       className="w-[var(--main-width)] shrink-0 space-y-2"
@@ -277,13 +280,14 @@ export default function PlaceOrderCard() {
             <div className="flex-1" />
             <div className="text-muted-foreground flex items-center gap-1 text-xs">
               <Wallet className="size-3" />
-              {formatter.valueLocale(1000000)}
+              {formatter.valueLocale(internalBalance[baseTokenA])}
               <Button
                 type="button"
                 variant="outline"
                 size="2xs"
+                disabled={!internalBalance[baseTokenA]}
                 onClick={() => {
-                  const balance = 500000
+                  const balance = internalBalance[baseTokenA] / 2
                   setValue("baseTokenAmount", balance)
                   const quoteTokenAmount = baseDiffedPrice
                     .multipliedBy(balance)
@@ -297,8 +301,9 @@ export default function PlaceOrderCard() {
                 type="button"
                 variant="outline"
                 size="2xs"
+                disabled={!internalBalance[baseTokenA]}
                 onClick={() => {
-                  const balance = 1000000
+                  const balance = internalBalance[baseTokenA]
                   setValue("baseTokenAmount", balance)
                   const quoteTokenAmount = baseDiffedPrice
                     .multipliedBy(balance)
