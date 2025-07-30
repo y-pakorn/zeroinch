@@ -6,6 +6,7 @@ import { tokens } from "@/config/token"
 import { formatter } from "@/lib/formatter"
 import { cn } from "@/lib/utils"
 import { useInternalBalances } from "@/hooks/use-internal-balances"
+import { useMarketPrice } from "@/hooks/use-market-price"
 import { useAccountStore } from "@/stores/account"
 
 import { Button } from "./ui/button"
@@ -38,6 +39,8 @@ export function InternalAccountButton({
     [internalBalances]
   )
 
+  const { data: prices } = useMarketPrice()
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -66,18 +69,30 @@ export function InternalAccountButton({
             <CommandEmpty>No balance found.</CommandEmpty>
             <CommandGroup>
               {balanceList.map(([address, balance]) => {
-                const token = tokens[address as Address]!
+                const tokenAddress = address as Address
+                const token = tokens[tokenAddress]!
                 return (
                   <CommandItem
                     key={address}
                     value={address}
-                    className="gap-1"
+                    className="gap-2"
                     keywords={[token.name, token.symbol, token.address]}
                   >
-                    <img src={token.logoURI} alt={address} className="size-4" />
-                    <div className="font-medium">{token.symbol}</div>
-                    <div className="text-muted-foreground ml-auto">
-                      {formatter.value(balance, formatter.decimals(balance))}
+                    <img src={token.logoURI} alt={address} className="size-6" />
+                    <div>
+                      <div className="font-medium">{token.symbol}</div>
+                      <div className="text-muted-foreground font-mono text-xs">
+                        {token.address.slice(0, 8)}...
+                        {token.address.slice(-4)}
+                      </div>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="truncate font-medium">
+                        {formatter.value(balance, formatter.decimals(balance))}
+                      </div>
+                      <div className="text-muted-foreground truncate font-mono text-xs">
+                        {formatter.usd(balance * (prices?.[tokenAddress] || 0))}
+                      </div>
                     </div>
                   </CommandItem>
                 )

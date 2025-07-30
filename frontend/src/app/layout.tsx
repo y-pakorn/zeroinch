@@ -84,7 +84,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <head />
       <body
         className={cn(
-          "bg-background min-h-screen font-sans tracking-tighter antialiased",
+          "bg-background min-h-screen font-sans tracking-[-0.03em] antialiased",
           sans.variable,
           mono.variable,
           serif.variable

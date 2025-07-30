@@ -54,7 +54,7 @@ export function SelectTokenDialog({
                   <div className="font-medium">
                     {token.name} ({token.symbol})
                   </div>
-                  <div className="text-muted-foreground text-xs">
+                  <div className="text-muted-foreground font-mono text-xs">
                     {token.address}
                   </div>
                 </div>
