@@ -18,6 +18,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 const serif = Bitcount_Grid_Double({
   subsets: ["latin"],
   variable: "--font-serif",
+  adjustFontFallback: false,
 })
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" })
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })

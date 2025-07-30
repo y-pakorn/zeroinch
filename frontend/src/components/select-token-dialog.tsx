@@ -48,10 +48,12 @@ export function SelectTokenDialog({
                 <img
                   src={token.logoURI || images.unknown}
                   alt={token.name}
-                  className="size-6 shrink-0 rounded-full"
+                  className="size-7 shrink-0 rounded-full"
                 />
                 <div>
-                  <div className="font-medium">{token.name}</div>
+                  <div className="font-medium">
+                    {token.name} ({token.symbol})
+                  </div>
                   <div className="text-muted-foreground text-xs">
                     {token.address}
                   </div>

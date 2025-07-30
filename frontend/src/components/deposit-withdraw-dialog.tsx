@@ -305,6 +305,7 @@ export function DepositWithdrawDialog({
             type="submit"
             className="w-full"
             size="lg"
+            variant={!address ? "outline" : "default"}
             onClick={(e) => {
               if (!address) {
                 e.preventDefault()

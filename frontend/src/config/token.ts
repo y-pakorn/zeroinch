@@ -158,7 +158,7 @@ export const tokens: Record<Address, IToken> = {
   },
   "0x7f5c764cbc14f9669b88837ca1490cca17c31607": {
     chainId: 10,
-    symbol: "USDC",
+    symbol: "USDC.e",
     name: "USD Coin",
     address: "0x7f5c764cbc14f9669b88837ca1490cca17c31607",
     decimals: 6,
@@ -662,7 +662,7 @@ export const tokens: Record<Address, IToken> = {
   },
   "0x0b2c639c533813f4aa9d7837caf62653d097ff85": {
     chainId: 10,
-    symbol: "USDC_1",
+    symbol: "USDC",
     name: "USD Coin",
     address: "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
     decimals: 6,
