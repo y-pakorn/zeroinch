@@ -266,13 +266,26 @@ export default function PlaceOrderChartCard() {
             setValue("selectedInterval", parseInt(value) as 300 | 900 | 3600)
           }}
         >
-          {[300, 900, 3600].map((interval) => (
+          {[
+            {
+              value: 300,
+              label: "5m",
+            },
+            {
+              value: 900,
+              label: "15m",
+            },
+            {
+              value: 3600,
+              label: "1h",
+            },
+          ].map((interval) => (
             <ToggleGroupItem
-              key={interval}
-              value={interval.toString()}
+              key={interval.value}
+              value={interval.value.toString()}
               variant="outline"
             >
-              {formatter.duration(interval, "s")}
+              {interval.label}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
