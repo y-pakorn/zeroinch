@@ -1,3 +1,6 @@
 forge-std/=lib/forge-std/src/
 limit-order-protocol/=lib/limit-order-protocol/contracts/
+@1inch/solidity-utils/=lib/solidity-utils
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
 solidity-utils/=lib/solidity-utils/contracts/
