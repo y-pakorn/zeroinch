@@ -60,7 +60,7 @@ fn main(
     merkle_root: pub Field,
     order_hash: pub [Field; 3],
     precomp_secret: pub [Field; 10],
-    order_asset: pub [Note; 2],
+    order_asset: pub Note,
     nullifier: pub [Field; 2],
     new_note_hash: pub [Field; 2],
     input_note: [Note; 2],
@@ -125,18 +125,16 @@ fn main(
     }
 
     // sum order asset
-    for i in 0..2 {
-        if order_asset[i].amount != 0 {
-            // asset is in included_asset in any order
-            assert(
-                (order_asset[i].asset_address == included_asset[0])
-                    | (order_asset[i].asset_address == included_asset[1]),
-            );
-            if order_asset[i].asset_address == included_asset[0] {
-                sum_asset_1_out += order_asset[i].amount;
-            } else {
-                sum_asset_2_out += order_asset[i].amount;
-            }
+    if order_asset.amount != 0 {
+        // asset is in included_asset in any order
+        assert(
+            (order_asset.asset_address == included_asset[0])
+                | (order_asset.asset_address == included_asset[1]),
+        );
+        if order_asset.asset_address == included_asset[0] {
+            sum_asset_1_out += order_asset.amount;
+        } else {
+            sum_asset_2_out += order_asset.amount;
         }
     }
 
@@ -237,7 +235,7 @@ fn test_note_in_main() {
         merkle_root,
         [0, 0, 0],
         [0; 10],
-        [order_note, empty_note],
+        order_note,
         [69, 0],
         [note_hash, note_hash],
         [test_note, empty_note],
@@ -258,7 +256,7 @@ fn test_note_full() {
     let test_note_2_hash = note_hasher(test_note_2);
 
     let new_note_1 =
-        Note { asset_address: 1, amount: 75, secret: Combined_secret { secret: 2, nonce: 3 } };
+        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 2, nonce: 3 } };
 
     let new_note_2 =
         Note { asset_address: 2, amount: 35, secret: Combined_secret { secret: 12, nonce: 31 } };
@@ -273,14 +271,12 @@ fn test_note_full() {
     let order_note_1 =
         Note { asset_address: 2, amount: 15, secret: Combined_secret { secret: 0, nonce: 0 } };
 
-    let order_note_2 =
-        Note { asset_address: 1, amount: 25, secret: Combined_secret { secret: 0, nonce: 0 } };
     main(
         included_asset,
         merkle_root,
         [0, 0, 0],
         [0; 10],
-        [order_note_1, order_note_2],
+        order_note_1,
         [69, 456],
         [new_note_hash_1, new_note_hash_2],
         [test_note_1, test_note_2],
@@ -301,14 +297,14 @@ fn test_note_in_fail_sum() {
     let empty_note =
         Note { asset_address: 0, amount: 0, secret: Combined_secret { secret: 0, nonce: 0 } };
     let order_note =
-        Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
+        Note { asset_address: 1, amount: 50, secret: Combined_secret { secret: 0, nonce: 0 } };
     // too many order
     main(
         included_asset,
         merkle_root,
         [0, 0, 0],
         [0; 10],
-        [order_note, order_note],
+        order_note,
         [69, 0],
         [note_hash, note_hash],
         [test_note, empty_note],
@@ -336,7 +332,7 @@ fn test_note_in_fail_wrong_asset() {
         merkle_root,
         [0, 0, 0],
         [0; 10],
-        [order_note, empty_note],
+        order_note,
         [69, 0],
         [note_hash, note_hash],
         [test_note, empty_note],
