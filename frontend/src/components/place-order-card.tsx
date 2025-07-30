@@ -372,7 +372,7 @@ export default function PlaceOrderCard() {
             <div>
               <div className="text-muted-foreground flex items-center gap-1 text-xs">
                 <Wallet className="size-3" />
-                {formatter.valueLocale(1000000)}
+                {formatter.valueLocale(internalBalance[quoteTokenA] || 0)}
               </div>
             </div>
           </div>
