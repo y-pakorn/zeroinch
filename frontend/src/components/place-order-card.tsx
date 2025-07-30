@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import BigNumber from "bignumber.js"
 import {
   ArrowDown,
@@ -672,8 +673,21 @@ export default function PlaceOrderCard() {
       {diffPercentage < 0 && (
         <Card>
           <CardContent className="text-sm">
-            You are selling at a loss, Consider using{" "}
-            <span className="font-semibold">Market Price</span>.
+            You are selling at a loss{" "}
+            <span className="text-foreground/80">
+              ({formatter.percentage(diffPercentage)} less than the market
+              price)
+            </span>
+            . Consider using <span className="font-semibold">Market Price</span>{" "}
+            or swap at{" "}
+            <Link
+              href="https://app.1inch.io/swap"
+              target="_blank"
+              className="font-semibold underline!"
+            >
+              1inch Aggregator
+            </Link>
+            .
           </CardContent>
         </Card>
       )}
