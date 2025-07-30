@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp } from "lucide-react"
 
+import { ConnectWalletButton } from "./connect-wallet-button"
 import { DepositWithdrawDialog } from "./deposit-withdraw-dialog"
 import { InternalAccountButton } from "./internal-account-button"
 import { Button } from "./ui/button"
@@ -9,6 +10,7 @@ export default function Navbar() {
     <nav className="flex items-center gap-2">
       <div className="font-serif text-3xl">zeroinch</div>
       <div className="flex-1" />
+      <ConnectWalletButton />
       <InternalAccountButton />
       <DepositWithdrawDialog type="deposit">
         <Button variant="outline" size="sm">

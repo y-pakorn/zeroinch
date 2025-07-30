@@ -50,10 +50,10 @@ export function InternalAccountButton({
           className={cn(className)}
           {...props}
         >
-          Internal Account{" "}
+          <span className="text-muted-foreground">Internal Account</span>{" "}
           {rendered ? (
             <>
-              <span className="text-muted-foreground">{seed.slice(0, 8)}</span>
+              {seed.slice(0, 8)}
               <div className="size-2 rounded-full bg-green-400" />
             </>
           ) : (

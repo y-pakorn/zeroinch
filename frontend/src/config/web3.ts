@@ -7,6 +7,12 @@ import { env } from "@/env.mjs"
 
 import { chain } from "./chain"
 
+declare module "wagmi" {
+  interface Register {
+    config: typeof web3Config
+  }
+}
+
 export const web3Config = getDefaultConfig({
   appName: "ZeroInch",
   projectId: env.NEXT_PUBLIC_PROJECT_ID,

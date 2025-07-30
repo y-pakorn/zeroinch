@@ -104,7 +104,7 @@ export function DepositWithdrawDialog({
   const internalBalances = useInternalBalances()
 
   return (
-    <Dialog open={open} onOpenChange={setOpen} modal={false}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
