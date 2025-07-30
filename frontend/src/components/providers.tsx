@@ -13,7 +13,6 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       experimental_prefetchInRender: true,
-      staleTime: 1000 * 1, // default to 2s instead of 0
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
     },
