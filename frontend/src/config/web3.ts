@@ -14,6 +14,12 @@ export const web3Config = getDefaultConfig({
   }),
   chains: [chain],
   ssr: true,
+  batch: {
+    multicall: {
+      batchSize: 16_384,
+      wait: 50,
+    },
+  },
 })
 
 export const connections = getConnections(web3Config)
