@@ -1,5 +1,4 @@
 import { Hex } from "viem"
-import { generatePrivateKey } from "viem/accounts"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
@@ -34,7 +33,7 @@ export const useAccountStore = create<IAccountStore>()(
                     ...order,
                     cancelled: {
                       at: Date.now(),
-                      txHash: generatePrivateKey(),
+                      txHash: getRandomHex(),
                     },
                   }
                 : order
