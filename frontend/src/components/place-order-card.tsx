@@ -194,6 +194,7 @@ export default function PlaceOrderCard() {
       onSubmit={form.handleSubmit(handleSubmit)}
     >
       <div className="text-muted-foreground/80 text-2xl font-semibold">
+        Place an{" "}
         <span
           className={cn(
             type === "limit" && "text-foreground",
@@ -208,7 +209,7 @@ export default function PlaceOrderCard() {
           className={cn(type === "twap" && "text-foreground", "cursor-pointer")}
           onClick={() => setType("twap")}
         >
-          TWAP
+          TWAP Order
         </span>
       </div>
       <Card className="relative">
