@@ -32,10 +32,9 @@ contract Zeroinch is
         _;
     }
 
-    struct Note {
+    struct OrderNote {
         address assetAddress;
         uint256 amount;
-        bytes32 secretHash; // or cancel hash
         bytes32 cancelHash;
     }
 
@@ -43,7 +42,7 @@ contract Zeroinch is
         bytes32 merkleRoot;
         bytes32 orderHash;
         bytes32 precompSecret;
-        Note orderAsset;
+        OrderNote orderAsset;
         address orderAmount;
         bytes32[2] nullifier;
         bytes32[2] newNoteHash;
@@ -209,7 +208,7 @@ contract Zeroinch is
         uint256,
         uint256,
         bytes calldata
-    ) external {
+    ) external onlyLimitOrderProtocol {
         require(orderStatus[orderHash] == OrderStatus.Open);
         require(zeroinchOrder[orderHash].asset == _order.makerAsset.get());
         require(zeroinchOrder[orderHash].amount == _order.makingAmount);
@@ -241,7 +240,7 @@ contract Zeroinch is
         uint256 takingAmount,
         uint256,
         bytes calldata
-    ) external {
+    ) external onlyLimitOrderProtocol {
         orderStatus[orderHash] = OrderStatus.Done;
         _createNote(
             _order.takerAsset.get(),
