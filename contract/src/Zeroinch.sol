@@ -34,7 +34,6 @@ contract Zeroinch is
     }
 
     struct ZKPinput {
-        address[2] includedAsset;
         bytes32 merkleRoot;
         bytes32 orderHash;
         bytes32 precompSecret;
@@ -78,8 +77,8 @@ contract Zeroinch is
     }
 
     function _verify(
-        bytes calldata _proof,
-        bytes32[] calldata _publicInputs
+        bytes memory _proof,
+        bytes32[] memory _publicInputs
     ) internal view {
         require(_verifier.verify(_proof, _publicInputs));
     }
@@ -110,27 +109,6 @@ contract Zeroinch is
         ZKPinput memory zkinput
     ) public pure returns (bytes32[] memory) {
         bytes32[] memory publicInputs = new bytes32[](13);
-        publicInputs[0] = bytes32(
-            PoseidonT2.hash(
-                [
-                    uint256(uint160(zkinput.includedAsset[0])),
-                    uint256(uint160(zkinput.includedAsset[1]))
-                ]
-            )
-        );
-        publicInputs[1] = zkinput.merkleRoot;
-        publicInputs[2] = zkinput.orderHash;
-        publicInputs[3] = zkinput.precompSecret;
-        publicInputs[4] = bytes32(
-            PoseidonT2.hash(
-                [
-                    uint256(uint160(zkinput.orderAsset.asset_address)),
-                    zkinput.orderAsset.amount
-                ]
-            )
-        );
-        publicInputs[5] = zkinput.nullifier[0];
-        publicInputs[6] = zkinput.nullifier[1];
         return publicInputs;
     }
 

@@ -55,13 +55,13 @@ struct Merkle_proof {
 // make order.
 // take in 2 notes
 fn main(
-    included_asset: pub [Field; 2],
     merkle_root: pub Field,
     order_hash: pub Field,
     precomp_secret: pub Field,
     order_asset: pub Note,
     nullifier: pub [Field; 2],
     new_note_hash: pub [Field; 2],
+    included_asset: [Field; 2],
     input_note: [Note; 2],
     output_note: [Note; 2],
     inclusion_proof: [Merkle_proof; 2],
@@ -230,13 +230,13 @@ fn test_note_in_main() {
     let order_note =
         Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
     main(
-        included_asset,
         merkle_root,
         0,
         0,
         order_note,
         [69, 0],
         [note_hash, note_hash],
+        included_asset,
         [test_note, empty_note],
         [empty_note, empty_note],
         inclusion_proof,
@@ -271,13 +271,13 @@ fn test_note_full() {
         Note { asset_address: 2, amount: 15, secret: Combined_secret { secret: 0, nonce: 0 } };
 
     main(
-        included_asset,
         merkle_root,
         0,
         0,
         order_note_1,
         [69, 456],
         [new_note_hash_1, new_note_hash_2],
+        included_asset,
         [test_note_1, test_note_2],
         [new_note_1, new_note_2],
         inclusion_proof,
@@ -299,13 +299,13 @@ fn test_note_in_fail_sum() {
         Note { asset_address: 1, amount: 50, secret: Combined_secret { secret: 0, nonce: 0 } };
     // too many order
     main(
-        included_asset,
         merkle_root,
         0,
         0,
         order_note,
         [69, 0],
         [note_hash, note_hash],
+        included_asset,
         [test_note, empty_note],
         [empty_note, empty_note],
         inclusion_proof,
@@ -327,13 +327,13 @@ fn test_note_in_fail_wrong_asset() {
         Note { asset_address: 1, amount: 100, secret: Combined_secret { secret: 0, nonce: 0 } };
     // too many order
     main(
-        included_asset,
         merkle_root,
         0,
         0,
         order_note,
         [69, 0],
         [note_hash, note_hash],
+        included_asset,
         [test_note, empty_note],
         [empty_note, empty_note],
         inclusion_proof,
