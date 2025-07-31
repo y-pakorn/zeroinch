@@ -139,6 +139,10 @@ contract Zeroinch is
             insertedNotes[zkinput.newNoteHash[1]] = true;
             emit newNote(zkinput.newNoteHash[1], inserted_index);
         }
+
+        // add order
+        orderStatus[zkinput.orderHash] = OrderStatus.Open;
+        zeroinchOrder[zkinput.orderHash] = Ze
     }
     function withdraw(
         address asset,

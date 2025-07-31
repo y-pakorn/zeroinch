@@ -39,12 +39,8 @@ fn path_processor(leaf: Field, index: u32, hash_path: [Field; 10]) -> Field {
 
 // H(asset_address, amount, H(secret,nonce))
 fn note_hasher(input: Note) -> Field {
-    let secret_hash =
-        poseidon::poseidon2::Poseidon2::hash([input.secret.secret, input.secret.nonce], 2);
-    poseidon::poseidon2::Poseidon2::hash(
-        [input.asset_address, input.amount as Field, secret_hash],
-        3,
-    )
+    let secret_hash = poseidon::poseidon::bn254::hash_2([input.secret.secret, input.secret.nonce]);
+    poseidon::poseidon::bn254::hash_3([input.asset_address, input.amount as Field, secret_hash])
 }
 
 struct Merkle_proof {
@@ -209,10 +205,11 @@ fn test_simple_note_hash() {
     let hash = note_hasher(note);
     assert(
         hash
-            == poseidon::poseidon2::Poseidon2::hash(
-                [1, 100, poseidon::poseidon2::Poseidon2::hash([42, 69], 2)],
-                3,
-            ),
+            == poseidon::poseidon::bn254::hash_3([
+                1,
+                100,
+                poseidon::poseidon::bn254::hash_2([42, 69]),
+            ]),
     );
 }
 
