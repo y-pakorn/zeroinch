@@ -2,7 +2,7 @@ import { parseAbi } from "viem"
 
 export const contracts = {
   zeroinch: {
-    address: "0xefd2c6c960d25e587bc7476288ce18972c97a91e",
+    address: "0x2e0a688724df311a2b5028763ea8ac42ea3f3f87",
     abi: parseAbi([
       "struct OrderNote { address assetAddress; uint256 amount; bytes32 cancelHash; }",
       "struct ZKPinput { bytes32 merkleRoot; bytes32 orderHash; bytes32 normalizedOrderHash; bytes32 precompSecret; OrderNote orderAsset; address orderAmount; bytes32[2] nullifier; bytes32[2] newNoteHash; bytes proof; }",
