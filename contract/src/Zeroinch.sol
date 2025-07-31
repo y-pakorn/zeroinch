@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.23;
-import "./Verifier.sol";
+
 import "solidity-utils/mixins/OnlyWethReceiver.sol";
 import "limit-order-protocol/interfaces/IPreInteraction.sol";
 import "limit-order-protocol/interfaces/IPostInteraction.sol";
@@ -8,10 +8,11 @@ import "limit-order-protocol/interfaces/IOrderMixin.sol";
 import "limit-order-protocol/OrderLib.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
+
+import "./Verifier.sol";
 import "./PoseidonT2.sol";
 import "./PoseidonT3.sol";
 import "./PoseidonT4.sol";
-
 import "./MerkleTreeWithHistory.sol";
 
 contract Zeroinch is
@@ -30,6 +31,7 @@ contract Zeroinch is
             revert OnlyLimitOrderProtocol();
         _;
     }
+
     struct Note {
         address assetAddress;
         uint256 amount;
@@ -144,12 +146,6 @@ contract Zeroinch is
             }
         }
 
-        // require order not exist
-        bytes32 orderHash = zkinput.orderHash;
-        require(orderStatus[orderHash] == OrderStatus.NotExist);
-        require(zeroinchOrder[orderHash].asset == address(0));
-        require(zeroinchOrder[orderHash].amount == 0);
-
         // verify zk proof
         _verify(zkinput.proof, packPublicInput(zkinput));
 
@@ -167,14 +163,22 @@ contract Zeroinch is
             emit NewLeaf(0, zkinput.newNoteHash[1], inserted_index);
         }
 
-        // add order
-        orderStatus[zkinput.orderHash] = OrderStatus.Open;
-        zeroinchOrder[zkinput.orderHash] = ZOrder({
-            asset: zkinput.orderAsset.assetAddress,
-            amount: zkinput.orderAsset.amount,
-            secretHash: zkinput.precompSecret,
-            cancelHash: zkinput.orderAsset.cancelHash
-        });
+        bytes32 orderHash = zkinput.orderHash;
+        // if orderHash is not 0, it means the order is new order
+        if (orderHash != bytes32(0)) {
+            require(orderStatus[orderHash] == OrderStatus.NotExist);
+            require(zeroinchOrder[orderHash].asset == address(0));
+            require(zeroinchOrder[orderHash].amount == 0);
+
+            // add order
+            orderStatus[zkinput.orderHash] = OrderStatus.Open;
+            zeroinchOrder[zkinput.orderHash] = ZOrder({
+                asset: zkinput.orderAsset.assetAddress,
+                amount: zkinput.orderAsset.amount,
+                secretHash: zkinput.precompSecret,
+                cancelHash: zkinput.orderAsset.cancelHash
+            });
+        }
     }
 
     function withdraw(
@@ -197,21 +201,21 @@ contract Zeroinch is
     }
 
     function preInteraction(
-        IOrderMixin.Order calldata order,
-        bytes calldata extension,
+        IOrderMixin.Order calldata _order,
+        bytes calldata,
         bytes32 orderHash,
-        address taker,
-        uint256 makingAmount,
-        uint256 takingAmount,
-        uint256 remainingMakingAmount,
-        bytes calldata extraData
+        address,
+        uint256,
+        uint256,
+        uint256,
+        bytes calldata
     ) external {
         require(orderStatus[orderHash] == OrderStatus.Open);
-        require(zeroinchOrder[orderHash].asset == order.makerAsset.get());
-        require(zeroinchOrder[orderHash].amount == order.makingAmount);
-        IERC20(order.makerAsset.get()).approve(
+        require(zeroinchOrder[orderHash].asset == _order.makerAsset.get());
+        require(zeroinchOrder[orderHash].amount == _order.makingAmount);
+        IERC20(_order.makerAsset.get()).approve(
             _LIMIT_ORDER_PROTOCOL,
-            order.makingAmount
+            _order.makingAmount
         );
     }
 
@@ -229,18 +233,18 @@ contract Zeroinch is
     }
 
     function postInteraction(
-        IOrderMixin.Order calldata order,
-        bytes calldata extension,
+        IOrderMixin.Order calldata _order,
+        bytes calldata,
         bytes32 orderHash,
-        address taker,
-        uint256 makingAmount,
+        address,
+        uint256,
         uint256 takingAmount,
-        uint256 remainingMakingAmount,
-        bytes calldata extraData
+        uint256,
+        bytes calldata
     ) external {
         orderStatus[orderHash] = OrderStatus.Done;
         _createNote(
-            order.takerAsset.get(),
+            _order.takerAsset.get(),
             takingAmount,
             zeroinchOrder[orderHash].secretHash
         );
