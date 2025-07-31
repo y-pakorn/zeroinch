@@ -27,6 +27,22 @@ contract Zeroinch is
             revert OnlyLimitOrderProtocol();
         _;
     }
+    struct Note {
+        address asset_address;
+        uint256 amount;
+        bytes32 secretHash; // or cancel hash
+    }
+
+    struct ZKPinput {
+        address[2] includedAsset;
+        bytes32 merkleRoot;
+        bytes32 orderHash;
+        bytes32 precompSecret;
+        Note orderAsset;
+        bytes32[2] nullifier;
+        bytes32[2] newNoteHash;
+        bytes proof;
+    }
     error OnlyLimitOrderProtocol();
     IVerifier _verifier;
     enum OrderType {
@@ -90,7 +106,37 @@ contract Zeroinch is
         _createNote(asset, amount, secretHash);
     }
 
-    function order() public {}
+    function packPublicInput(
+        ZKPinput memory zkinput
+    ) public pure returns (bytes32[] memory) {
+        bytes32[] memory publicInputs = new bytes32[](13);
+        publicInputs[0] = bytes32(
+            PoseidonT2.hash(
+                [
+                    uint256(uint160(zkinput.includedAsset[0])),
+                    uint256(uint160(zkinput.includedAsset[1]))
+                ]
+            )
+        );
+        publicInputs[1] = zkinput.merkleRoot;
+        publicInputs[2] = zkinput.orderHash;
+        publicInputs[3] = zkinput.precompSecret;
+        publicInputs[4] = bytes32(
+            PoseidonT2.hash(
+                [
+                    uint256(uint160(zkinput.orderAsset.asset_address)),
+                    zkinput.orderAsset.amount
+                ]
+            )
+        );
+        publicInputs[5] = zkinput.nullifier[0];
+        publicInputs[6] = zkinput.nullifier[1];
+        return publicInputs;
+    }
+
+    function order(ZKPinput calldata zkinput) public {
+        _verify(zkinput.proof, packPublicInput(zkinput));
+    }
     function withdraw(
         address asset,
         uint256 amount,
@@ -129,7 +175,10 @@ contract Zeroinch is
     }
 
     function cancel(bytes32 orderHash, bytes32 preimage) external {
-        require(keccak256(preimage) == zeroinchOrder[orderHash].cancelHash);
+        require(
+            keccak256(abi.encode(preimage)) ==
+                zeroinchOrder[orderHash].cancelHash
+        );
         orderStatus[orderHash] = OrderStatus.Cancelled;
         _createNote(
             zeroinchOrder[orderHash].asset,

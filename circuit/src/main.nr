@@ -1,5 +1,4 @@
 use dep::poseidon;
-use trees::merkle::MerkleTree;
 
 struct Combined_secret {
     secret: Field,
@@ -58,7 +57,7 @@ struct Merkle_proof {
 fn main(
     included_asset: pub [Field; 2],
     merkle_root: pub Field,
-    order_hash: pub [Field; 3],
+    order_hash: pub Field,
     precomp_secret: pub Field,
     order_asset: pub Note,
     nullifier: pub [Field; 2],
@@ -233,7 +232,7 @@ fn test_note_in_main() {
     main(
         included_asset,
         merkle_root,
-        [0, 0, 0],
+        0,
         0,
         order_note,
         [69, 0],
@@ -274,7 +273,7 @@ fn test_note_full() {
     main(
         included_asset,
         merkle_root,
-        [0, 0, 0],
+        0,
         0,
         order_note_1,
         [69, 456],
@@ -302,7 +301,7 @@ fn test_note_in_fail_sum() {
     main(
         included_asset,
         merkle_root,
-        [0, 0, 0],
+        0,
         0,
         order_note,
         [69, 0],
@@ -330,7 +329,7 @@ fn test_note_in_fail_wrong_asset() {
     main(
         included_asset,
         merkle_root,
-        [0, 0, 0],
+        0,
         0,
         order_note,
         [69, 0],
