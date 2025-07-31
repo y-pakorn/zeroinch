@@ -16,7 +16,7 @@ import { Address } from "viem"
 import { useAccount, useBalance, useDisconnect, useSwitchAccount } from "wagmi"
 
 import { images } from "@/config/image"
-import { tokens } from "@/config/token"
+import { tokens, WETH } from "@/config/token"
 import {
   DepositWithdrawFormData,
   depositWithdrawFormSchema,
@@ -51,7 +51,7 @@ export function DepositWithdrawDialog({
   const form = useForm<DepositWithdrawFormData>({
     resolver: zodResolver(depositWithdrawFormSchema),
     defaultValues: {
-      tokenA: "0x4200000000000000000000000000000000000006",
+      tokenA: WETH,
       amount: 0,
       address,
     },
