@@ -25,7 +25,7 @@ export interface ICombinedSecret {
   nonce: Hex
 }
 
-export type IOrder = ILimitOrder | ITwapOrder
+export type IOrder = ILimitOrder
 
 export interface IToken {
   address: Address
@@ -69,30 +69,30 @@ export interface ILimitOrder {
   }
 }
 
-export interface ITwapOrder {
-  id: Hex
-  type: "twap"
-  baseTokenA: Address
-  quoteTokenA: Address
-  baseTokenAmount: number
-  marketPrice: number
-  value: number // baseTokenAmount * marketPrice
-  createdAt: number
-  endAt: number
-  priceProtection: number
-  numberOfParts: number
-  filled?: {
-    index: number
-    at: number
-    txHash: Hex
-    quoteTokenAmount: number
-  }[]
-  claimed?: {
-    at: number
-    txHash: Hex
-  }[]
-  cancelled?: {
-    at: number
-    txHash: Hex
-  }
-}
+// export interface ITwapOrder {
+//   id: Hex
+//   type: "twap"
+//   baseTokenA: Address
+//   quoteTokenA: Address
+//   baseTokenAmount: number
+//   marketPrice: number
+//   value: number // baseTokenAmount * marketPrice
+//   createdAt: number
+//   endAt: number
+//   priceProtection: number
+//   numberOfParts: number
+//   filled?: {
+//     index: number
+//     at: number
+//     txHash: Hex
+//     quoteTokenAmount: number
+//   }[]
+//   claimed?: {
+//     at: number
+//     txHash: Hex
+//   }[]
+//   cancelled?: {
+//     at: number
+//     txHash: Hex
+//   }
+// }

@@ -18,11 +18,9 @@ import {
 } from "./ui/table"
 
 export default function OrderListCard() {
-  const [type, setType] = useState<"active-twap" | "active-limit" | "history">(
-    "active-limit"
-  )
+  const [type, setType] = useState<"active-limit" | "history">("active-limit")
 
-  const { limitOrders, twapOrders, orderHistory } = useOrders()
+  const { limitOrders, orderHistory } = useOrders()
   const { cancelOrder } = useAccountStore()
 
   return (
@@ -36,16 +34,6 @@ export default function OrderListCard() {
           onClick={() => setType("active-limit")}
         >
           Limit Orders
-        </span>
-        /
-        <span
-          className={cn(
-            type === "active-twap" && "text-foreground",
-            "cursor-pointer"
-          )}
-          onClick={() => setType("active-twap")}
-        >
-          TWAP Orders
         </span>
         /
         <span
@@ -138,96 +126,7 @@ export default function OrderListCard() {
           </TableBody>
         </Table>
       )}
-      {type === "active-twap" && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>You Pay</TableHead>
-              <TableHead>You Receive</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>End Time</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {twapOrders.length > 0 ? (
-              twapOrders.map((order) => {
-                const baseToken = tokens[order.baseTokenA]!
-                const quoteToken = tokens[order.quoteTokenA]!
-                const filledParts = order.filled?.length || 0
-                const totalParts = order.numberOfParts
-                const estimatedQuoteAmount =
-                  (order.baseTokenAmount * order.marketPrice) /
-                  (1 - order.priceProtection / 100)
 
-                return (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {formatter.value(
-                          order.baseTokenAmount,
-                          formatter.decimals(order.baseTokenAmount)
-                        )}{" "}
-                        <img
-                          src={baseToken.logoURI || images.unknown}
-                          alt={baseToken.name}
-                          className="size-4"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        ~
-                        {formatter.value(
-                          estimatedQuoteAmount,
-                          formatter.decimals(estimatedQuoteAmount)
-                        )}{" "}
-                        <img
-                          src={quoteToken.logoURI || images.unknown}
-                          alt={quoteToken.name}
-                          className="size-4"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatter.usd(order.value)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {filledParts}/{totalParts} parts
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {order.endAt > Date.now()
-                        ? formatter.timeRelative(order.endAt / 1000)
-                        : "Ended"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          cancelOrder(order.id)
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-muted-foreground h-24 text-center"
-                >
-                  No active TWAP orders
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
       {type === "history" && (
         <Table>
           <TableHeader>

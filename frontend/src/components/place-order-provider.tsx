@@ -8,6 +8,7 @@ import {
 } from "react"
 import BigNumber from "bignumber.js"
 import { useFormContext } from "react-hook-form"
+import { toast } from "sonner"
 import { Address } from "viem"
 
 import { tokens } from "@/config/token"
@@ -123,38 +124,25 @@ export const PlaceOrderProvider = ({
   const { addOrder } = useAccountStore()
   const handleSubmit = useCallback(
     (data: PlaceOrderFormData) => {
-      if (data.type === "limit") {
-        addOrder({
-          id: getRandomHex(),
-          type: "limit",
-          baseTokenA: data.baseTokenA,
-          quoteTokenA: data.quoteTokenA,
-          baseTokenAmount: data.baseTokenAmount,
-          minQuoteTokenAmount: data.quoteTokenAmount,
-          marketPrice: marketPrice.toNumber(),
-          value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
-          createdAt: Date.now(),
-          expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
-          diffPercentage: data.diffPercentage,
-          rate: data.rate,
-        })
+      if (data.type === "twap") {
+        toast.error("TWAP is not supported yet")
+        return
       }
 
-      if (data.type === "twap") {
-        addOrder({
-          id: getRandomHex(),
-          type: "twap",
-          baseTokenA: data.baseTokenA,
-          quoteTokenA: data.quoteTokenA,
-          baseTokenAmount: data.baseTokenAmount,
-          marketPrice: marketPrice.toNumber(),
-          value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
-          createdAt: Date.now(),
-          endAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
-          numberOfParts: data.numberOfParts,
-          priceProtection: data.diffPercentage,
-        })
-      }
+      addOrder({
+        id: getRandomHex(),
+        type: "limit",
+        baseTokenA: data.baseTokenA,
+        quoteTokenA: data.quoteTokenA,
+        baseTokenAmount: data.baseTokenAmount,
+        minQuoteTokenAmount: data.quoteTokenAmount,
+        marketPrice: marketPrice.toNumber(),
+        value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
+        createdAt: Date.now(),
+        expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
+        diffPercentage: data.diffPercentage,
+        rate: data.rate,
+      })
     },
     [prices, marketPrice]
   )
