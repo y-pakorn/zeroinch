@@ -1,4 +1,5 @@
 import { useConnectModal } from "@rainbow-me/rainbowkit"
+import BigNumber from "bignumber.js"
 import {
   ArrowLeftRight,
   ChevronsUpDown,
@@ -13,6 +14,8 @@ import {
   useEnsName,
   useSwitchAccount,
 } from "wagmi"
+
+import { formatter } from "@/lib/formatter"
 
 import { Button } from "./ui/button"
 import {
@@ -61,16 +64,20 @@ export function ConnectWalletButton() {
     )
   }
 
+  const balanceFormatted = !balance
+    ? undefined
+    : new BigNumber(balance.value).shiftedBy(-balance.decimals).toNumber()
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
           <span className="text-muted-foreground">Connected</span>{" "}
-          {!balance ? (
+          {!balanceFormatted ? (
             <Loader2 className="animate-spin" />
           ) : (
             <>
-              {balance.formatted} {balance.symbol}
+              {formatter.value(balanceFormatted)} {balance?.symbol}
             </>
           )}
           <ChevronsUpDown />
