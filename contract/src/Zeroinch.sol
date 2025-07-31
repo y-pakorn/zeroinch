@@ -17,7 +17,7 @@ import "./MerkleTreeWithHistory.sol";
 contract Zeroinch is
     IPreInteraction,
     IPostInteraction,
-    MerkleTreeWithHistory(20)
+    MerkleTreeWithHistory(10)
 {
     address private immutable _LIMIT_ORDER_PROTOCOL;
     using AddressLib for Address;
@@ -49,6 +49,7 @@ contract Zeroinch is
         TWAP
     }
     enum OrderStatus {
+        NotExist,
         Open,
         Done,
         Cancelled
@@ -59,6 +60,7 @@ contract Zeroinch is
         bytes32 indexed SecretHash,
         uint inserted_index
     );
+    event newNote(bytes32 indexed noteHash, uint inserted_index);
     struct ZOrder {
         address asset;
         uint256 amount;
@@ -113,7 +115,30 @@ contract Zeroinch is
     }
 
     function order(ZKPinput calldata zkinput) public {
+        // require nullifier unused
+        for (uint256 i = 0; i < zkinput.nullifier.length; i++) {
+            if (zkinput.nullifier[i] != bytes32(0)) {
+                require(!nullifierHashes[zkinput.nullifier[i]]);
+                nullifierHashes[zkinput.nullifier[i]] = true;
+            }
+        }
+        // require order not exist
+        bytes32 orderHash = zkinput.orderHash;
+        require(orderStatus[orderHash] == OrderStatus.NotExist);
+        require(zeroinchOrder[orderHash].asset == address(0));
+        require(zeroinchOrder[orderHash].amount == 0);
+
         _verify(zkinput.proof, packPublicInput(zkinput));
+        if (zkinput.newNoteHash[0] != bytes32(0)) {
+            uint inserted_index = _insert(zkinput.newNoteHash[0]);
+            insertedNotes[zkinput.newNoteHash[0]] = true;
+            emit newNote(zkinput.newNoteHash[0], inserted_index);
+        }
+        if (zkinput.newNoteHash[1] != bytes32(0)) {
+            uint inserted_index = _insert(zkinput.newNoteHash[1]);
+            insertedNotes[zkinput.newNoteHash[1]] = true;
+            emit newNote(zkinput.newNoteHash[1], inserted_index);
+        }
     }
     function withdraw(
         address asset,

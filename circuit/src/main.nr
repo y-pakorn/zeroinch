@@ -14,7 +14,7 @@ struct Note {
 }
 
 fn leaf_hasher(leafs: [Field; 2]) -> Field {
-    poseidon::poseidon2::Poseidon2::hash(leafs, 2)
+    poseidon::poseidon::bn254::hash_2(leafs)
 }
 
 fn process_path_hash(leaf: Field, index: u32, another_leaf: Field) -> Field {
