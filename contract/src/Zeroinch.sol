@@ -142,8 +142,14 @@ contract Zeroinch is
 
         // add order
         orderStatus[zkinput.orderHash] = OrderStatus.Open;
-        zeroinchOrder[zkinput.orderHash] = Ze
+        zeroinchOrder[zkinput.orderHash] = ZOrder({
+            asset: zkinput.orderAsset.asset_address,
+            amount: zkinput.orderAsset.amount,
+            secretHash: zkinput.precompSecret,
+            cancelHash: zkinput.orderAsset.secretHash
+        });
     }
+
     function withdraw(
         address asset,
         uint256 amount,
