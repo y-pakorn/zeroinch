@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useConnectModal } from "@rainbow-me/rainbowkit"
 import BigNumber from "bignumber.js"
@@ -12,17 +12,34 @@ import {
 import { useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
 import { toast } from "sonner"
-import { Address } from "viem"
-import { useAccount, useBalance, useDisconnect, useSwitchAccount } from "wagmi"
+import { Address, decodeEventLog, erc20Abi } from "viem"
+import {
+  useAccount,
+  useBalance,
+  useChainId,
+  useClient,
+  useDisconnect,
+  usePrepareTransactionRequest,
+  usePublicClient,
+  useReadContract,
+  useSwitchAccount,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi"
 
+import { chain } from "@/config/chain"
+import { contracts } from "@/config/contract"
 import { images } from "@/config/image"
 import { tokens, WETH } from "@/config/token"
+import { getCombinedSecretHash, getRandomHex } from "@/lib/crypto"
 import {
   DepositWithdrawFormData,
   depositWithdrawFormSchema,
 } from "@/lib/schema"
 import { useInternalBalances } from "@/hooks/use-internal-balances"
 import { useAccountStore } from "@/stores/account"
+import { ICombinedSecret } from "@/types"
 
 import { SelectTokenDialog } from "./select-token-dialog"
 import { TransparentInput } from "./transparent-input"
@@ -59,35 +76,20 @@ export function DepositWithdrawDialog({
 
   const { addNote, removeNotes, calculateNotes, account } = useAccountStore()
 
-  const onSubmit = useCallback(
-    (data: DepositWithdrawFormData) => {
-      if (type === "deposit") {
-        addNote(data.tokenA, data.amount)
-        setOpen(false)
-        form.reset()
-        toast.success("Deposit successfully")
-      } else {
-        const { notes, totalBalance } = calculateNotes(data.tokenA, data.amount)
-        if (totalBalance < data.amount) {
-          toast.error("Insufficient internal balance")
-          return
-        }
+  const onSubmit = async (data: DepositWithdrawFormData) => {
+    if (!data.amount) return
 
-        const noteHashes = notes.map((note) => note.hash)
-        removeNotes(noteHashes)
-
-        const remainingBalance = totalBalance - data.amount
-        if (remainingBalance > 0) {
-          addNote(tokenA, remainingBalance)
-        }
-
-        setOpen(false)
-        form.reset()
-        toast.success("Withdraw successfully")
+    if (type === "deposit") {
+      if (!isEnoughAllowance) {
+        await approve()
+        return
       }
-    },
-    [type]
-  )
+
+      await deposit()
+    } else {
+      await withdraw()
+    }
+  }
 
   const { amount, tokenA, address: formAddress } = form.watch()
 
@@ -100,6 +102,120 @@ export function DepositWithdrawDialog({
     address,
     token: tokenA as Address,
   })
+
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: tokenA as Address,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address ? [address, contracts.zeroinch.address] : undefined,
+  })
+
+  const isEnoughAllowance = useMemo(() => {
+    if (!allowance) return false
+    return new BigNumber(amount).shiftedBy(token.decimals).lte(allowance)
+  }, [allowance, amount, token.decimals])
+
+  const { writeContractAsync } = useWriteContract({
+    mutation: {
+      onError: (error) => {
+        toast.error("Failed to send transaction", {
+          description: error.message,
+        })
+      },
+    },
+  })
+  const publicClient = usePublicClient()
+
+  const approve = async () => {
+    if (!address || !amount) return
+    console.log(
+      amount,
+      BigInt(new BigNumber(amount).shiftedBy(token.decimals).toFixed(0))
+    )
+    const hash = await writeContractAsync({
+      address: tokenA as Address,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [
+        contracts.zeroinch.address,
+        BigInt(new BigNumber(amount).shiftedBy(token.decimals).toFixed(0)),
+      ],
+    })
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+    })
+
+    if (receipt.status === "success") {
+      toast.success("Token allowance approved")
+    } else {
+      toast.error("Failed to approve token allowance")
+    }
+
+    refetchAllowance()
+  }
+
+  const deposit = async () => {
+    if (!address || !amount) return
+
+    const fullAmount = BigInt(
+      new BigNumber(amount).shiftedBy(token.decimals).toFixed(0)
+    )
+    const combinedSecret: ICombinedSecret = {
+      nonce: getRandomHex(),
+      secret: getRandomHex(),
+    }
+    const hash = await writeContractAsync({
+      address: contracts.zeroinch.address,
+      abi: contracts.zeroinch.abi,
+      functionName: "deposit",
+      args: [tokenA, fullAmount, getCombinedSecretHash(combinedSecret)],
+    })
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+    })
+
+    if (receipt.status === "reverted") {
+      toast.error("Failed to deposit")
+      return
+    }
+
+    let newLeaf:
+      | {
+          noteHash: string
+          insertedIndex: number
+        }
+      | undefined = undefined
+    receipt.logs.forEach((log) => {
+      try {
+        const event = decodeEventLog({
+          abi: contracts.zeroinch.abi,
+          topics: log.topics,
+          data: log.data,
+        })
+        if (event.eventName === "NewLeaf") {
+          newLeaf = {
+            noteHash: event.args.noteHash,
+            insertedIndex: Number(event.args.insertedIndex),
+          }
+        }
+      } catch (_) {}
+    })
+    if (!newLeaf) {
+      toast.error("Deposit note not found in event")
+      return
+    }
+    addNote(tokenA, amount, combinedSecret)
+    setOpen(false)
+    form.resetField("amount")
+    form.resetField("address")
+    toast.success("Deposit successfully")
+  }
+
+  const withdraw = async () => {
+    if (!address || !amount) return
+
+    toast.error("Not implemented")
+  }
 
   const internalBalances = useInternalBalances()
 
@@ -305,6 +421,7 @@ export function DepositWithdrawDialog({
             type="submit"
             className="w-full"
             size="lg"
+            disabled={!amount || form.formState.isSubmitting}
             variant={!address ? "outline" : "default"}
             onClick={(e) => {
               if (!address) {
@@ -316,8 +433,13 @@ export function DepositWithdrawDialog({
             {!address
               ? "Connect Wallet"
               : type === "deposit"
-                ? "Deposit"
+                ? isEnoughAllowance
+                  ? "Deposit"
+                  : `Approve ${token.symbol}`
                 : "Withdraw"}
+            {form.formState.isSubmitting && (
+              <Loader2 className="animate-spin" />
+            )}
           </Button>
         </form>
       </DialogContent>

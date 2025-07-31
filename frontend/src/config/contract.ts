@@ -11,6 +11,7 @@ export const contracts = {
       "function cancel(bytes32 orderHash, bytes32 preimage) public",
       "function roots(uint256 index) public view returns (bytes32)",
       "function currentRootIndex() public view returns (uint256)",
+      "event NewLeaf(bytes32 indexed secretHash, bytes32 indexed noteHash, uint256 indexed insertedIndex)",
     ]),
   },
   limit: {

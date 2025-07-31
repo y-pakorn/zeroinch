@@ -1,18 +1,28 @@
 import BigNumber from "bignumber.js"
 import { Address, fromHex, Hex } from "viem"
+import { deserialize, serialize } from "wagmi"
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { createJSONStorage, persist } from "zustand/middleware"
 
 import { tokens } from "@/config/token"
 import { getNoteHash, getRandomHex } from "@/lib/crypto"
 import { bigNumberToBigInt } from "@/lib/utils"
-import { IAccount, INote, IOrder, IPrimitiveNote } from "@/types"
+import {
+  IAccount,
+  ICombinedSecret,
+  INote,
+  IOrder,
+  IPrimitiveNote,
+} from "@/types"
 
 interface IAccountStore {
   account: IAccount
   addOrder: (order: IOrder) => void
-  cancelOrder: (id: Hex) => void
-  addNote: (tokenA: Address, balance: number) => void
+  addNote: (
+    tokenA: Address,
+    balance: number,
+    combinedSecret?: ICombinedSecret
+  ) => void
   removeNotes: (noteHashes: Hex[]) => void
   calculateNotes: (
     tokenA: Address,
@@ -35,27 +45,16 @@ export const useAccountStore = create<IAccountStore>()(
         const account = get().account
         set({ account: { ...account, orders: [...account.orders, order] } })
       },
-      cancelOrder: (id: Hex) => {
-        set(({ account }) => ({
-          account: {
-            ...account,
-            orders: account.orders.map((order) =>
-              order.id === id
-                ? {
-                    ...order,
-                    cancelled: {
-                      at: Date.now(),
-                      txHash: getRandomHex(),
-                    },
-                  }
-                : order
-            ),
-          },
-        }))
-      },
-      addNote: (tokenA: Address, balance: number) => {
+      addNote: (
+        tokenA: Address,
+        balance: number,
+        combinedSecret?: ICombinedSecret
+      ) => {
         const primitiveNote: IPrimitiveNote = {
-          combinedSecret: { secret: getRandomHex(), nonce: getRandomHex() },
+          combinedSecret: combinedSecret ?? {
+            secret: getRandomHex(),
+            nonce: getRandomHex(),
+          },
           asset_balance: bigNumberToBigInt(
             BigNumber(balance).shiftedBy(tokens[tokenA].decimals)
           ).toString(),
@@ -102,7 +101,15 @@ export const useAccountStore = create<IAccountStore>()(
       },
     }),
     {
-      name: `account-storage-v0.0.02`,
+      name: `account-storage-v0.0.03`,
+      storage: createJSONStorage(() => localStorage, {
+        replacer: (_, value) => {
+          return serialize(value)
+        },
+        reviver: (_, value) => {
+          return deserialize(value as any)
+        },
+      }),
     }
   )
 )

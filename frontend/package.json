@@ -11,7 +11,9 @@
     "format:check": "pnpm prettier ./src --check"
   },
   "dependencies": {
+    "@1inch/byte-utils": "^3.1.0",
     "@1inch/fusion-sdk": "^2.3.5",
+    "@1inch/limit-order-sdk": "4.13.0",
     "@aztec/bb.js": "0.82.2",
     "@hookform/resolvers": "^5.2.0",
     "@next/third-parties": "^15.4.4",

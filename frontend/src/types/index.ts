@@ -1,3 +1,4 @@
+import { LimitOrder } from "@1inch/limit-order-sdk"
 import type { Address, Hex } from "viem"
 
 export interface IAccount {
@@ -54,18 +55,20 @@ export interface ILimitOrder {
   createdAt: number
   diffPercentage: number
   rate: number
+  combinedSecret: ICombinedSecret
+  oneInchOrder: LimitOrder
   filled?: {
     at: number
+    noteHash: Hex
+    leafIndex: number
     txHash: Hex
     actualQuoteTokenAmount: number
-  }
-  claimed?: {
-    at: number
-    txHash: Hex
   }
   cancelled?: {
     at: number
     txHash: Hex
+    noteHash: Hex
+    leafIndex: number
   }
 }
 

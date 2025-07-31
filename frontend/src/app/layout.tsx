@@ -97,7 +97,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             disableTransitionOnChange
           >
             {children}
-            <Toaster />
+            <Toaster closeButton />
           </ThemeProvider>
         </Providers>
       </body>

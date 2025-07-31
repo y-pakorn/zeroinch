@@ -4,19 +4,37 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
+import {
+  ExtensionBuilder,
+  FeeTakerExt,
+  Interaction,
+  LimitOrder,
+  LimitOrderWithFee,
+  MakerTraits,
+  Address as OneInchAddress,
+  OrderInfoData,
+  randBigInt,
+  ZX,
+} from "@1inch/limit-order-sdk"
 import BigNumber from "bignumber.js"
 import { useFormContext } from "react-hook-form"
 import { toast } from "sonner"
-import { Address } from "viem"
+import { Address, Hex } from "viem"
+import { serialize } from "wagmi"
 
+import { chain } from "@/config/chain"
+import { contracts } from "@/config/contract"
 import { tokens } from "@/config/token"
 import { getRandomHex } from "@/lib/crypto"
 import { PlaceOrderFormData } from "@/lib/schema"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { useAccountStore } from "@/stores/account"
-import { IToken } from "@/types"
+import { ILimitOrder, IToken } from "@/types"
+
+import { Card, CardContent } from "./ui/card"
 
 export const PlaceOrderContext = createContext<{
   marketPrice: BigNumber
@@ -41,6 +59,7 @@ export const PlaceOrderProvider = ({
     watch,
     setValue,
     formState: { errors, isValid, isSubmitting },
+    reset,
   } = useFormContext<PlaceOrderFormData>()
   const {
     baseTokenA,
@@ -121,31 +140,76 @@ export const PlaceOrderProvider = ({
     }
   }, [errors, isSubmitting, isValid])
 
-  const { addOrder } = useAccountStore()
-  const handleSubmit = useCallback(
-    (data: PlaceOrderFormData) => {
-      if (data.type === "twap") {
-        toast.error("TWAP is not supported yet")
-        return
-      }
+  const { addOrder, account } = useAccountStore()
 
-      addOrder({
-        id: getRandomHex(),
-        type: "limit",
-        baseTokenA: data.baseTokenA,
-        quoteTokenA: data.quoteTokenA,
-        baseTokenAmount: data.baseTokenAmount,
-        minQuoteTokenAmount: data.quoteTokenAmount,
-        marketPrice: marketPrice.toNumber(),
-        value: data.quoteTokenAmount * (prices?.[data.quoteTokenA] || 0),
-        createdAt: Date.now(),
-        expiredAt: Date.now() + data.expiry * 60 * 60 * 1000, // expiry in hours
-        diffPercentage: data.diffPercentage,
-        rate: data.rate,
-      })
-    },
-    [prices, marketPrice]
-  )
+  const handleSubmit = async (data: PlaceOrderFormData) => {
+    if (data.type === "twap") {
+      toast.error("TWAP is not supported yet")
+      return
+    }
+
+    const makingAmount = BigInt(
+      new BigNumber(baseTokenAmount)
+        .shiftedBy(tokens[baseTokenA].decimals)
+        .toFixed(0)
+    )
+    const takingAmount = BigInt(
+      new BigNumber(quoteTokenAmount)
+        .shiftedBy(tokens[quoteTokenA].decimals)
+        .toFixed(0)
+    )
+    const orderInfo: OrderInfoData = {
+      maker: new OneInchAddress(contracts.zeroinch.address),
+      makerAsset: new OneInchAddress(baseTokenA),
+      takerAsset: new OneInchAddress(quoteTokenA),
+      makingAmount,
+      takingAmount,
+    }
+    const expiredAt = Date.now() + 1000 * 60 * 60 * data.expiry // expiry in hours
+
+    const makerTraits = MakerTraits.default()
+      .withExpiration(BigInt(Math.floor(expiredAt / 1000)))
+      .disablePartialFills()
+      .disableMultipleFills()
+      .enablePostInteraction()
+      .enablePostInteraction()
+      .withExtension()
+
+    const extension = new ExtensionBuilder()
+      .withPostInteraction(
+        new Interaction(new OneInchAddress(contracts.zeroinch.address), "0x00")
+      )
+      .withPreInteraction(
+        new Interaction(new OneInchAddress(contracts.zeroinch.address), "0x00")
+      )
+      .build()
+    const oneInchOrder = new LimitOrder(orderInfo, makerTraits, extension)
+    const hash = oneInchOrder.getOrderHash(chain.id) as Hex
+
+    const order: ILimitOrder = {
+      id: hash,
+      type: "limit",
+      baseTokenA: baseTokenA,
+      quoteTokenA: quoteTokenA,
+      baseTokenAmount: baseTokenAmount,
+      minQuoteTokenAmount: quoteTokenAmount,
+      marketPrice: marketPrice.toNumber(),
+      value: quoteTokenAmount * (prices?.[quoteTokenA] || 0),
+      expiredAt: expiredAt,
+      createdAt: Date.now(),
+      diffPercentage: diffPercentage,
+      combinedSecret: {
+        nonce: getRandomHex(),
+        secret: getRandomHex(),
+      },
+      oneInchOrder: oneInchOrder,
+      rate,
+    }
+
+    // addOrder(order)
+
+    reset()
+  }
 
   return (
     <PlaceOrderContext.Provider
