@@ -44,7 +44,6 @@ contract Zeroinch is
         bytes32 normalizedOrderHash;
         bytes32 precompSecret;
         OrderNote orderAsset;
-        address orderAmount;
         bytes32[2] nullifier;
         bytes32[2] newNoteHash;
         bytes proof;
@@ -87,7 +86,7 @@ contract Zeroinch is
         bytes memory _proof,
         bytes32[] memory _publicInputs
     ) internal view {
-        require(_verifier.verify(_proof, _publicInputs));
+        require(_verifier.verify(_proof, _publicInputs), "invalid proof");
     }
 
     function _createNote(
@@ -100,7 +99,7 @@ contract Zeroinch is
                 [uint256(uint160(asset)), uint256(amount), uint256(secretHash)]
             )
         );
-        require(!insertedNotes[noteHash]);
+        require(!insertedNotes[noteHash], "note already inserted");
         uint256 inserted_index = _insert(noteHash);
         insertedNotes[noteHash] = true;
         emit NewLeaf(secretHash, noteHash, inserted_index);
@@ -166,9 +165,15 @@ contract Zeroinch is
         bytes32 orderHash = zkinput.orderHash;
         // if orderHash is not 0, it means the order is new order
         if (orderHash != bytes32(0)) {
-            require(orderStatus[orderHash] == OrderStatus.NotExist);
-            require(zeroinchOrder[orderHash].asset == address(0));
-            require(zeroinchOrder[orderHash].amount == 0);
+            require(
+                orderStatus[orderHash] == OrderStatus.NotExist,
+                "order already exists"
+            );
+            require(
+                zeroinchOrder[orderHash].asset == address(0),
+                "asset is not 0"
+            );
+            require(zeroinchOrder[orderHash].amount == 0, "amount is not 0");
 
             // add order
             orderStatus[zkinput.orderHash] = OrderStatus.Open;
