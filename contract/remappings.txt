@@ -5,3 +5,4 @@ halmos-cheatcodes/=lib/openzeppelin-contracts/lib/halmos-cheatcodes/src/
 limit-order-protocol/=lib/limit-order-protocol/contracts/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
 solidity-utils/=lib/solidity-utils/contracts/
+@1inch/solidity-utils/=lib/solidity-utils

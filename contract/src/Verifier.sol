@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Aztec
-pragma solidity >=0.8.21;
+pragma solidity ^0.8.23;
 
 uint256 constant N = 65536;
 uint256 constant LOG_N = 16;
@@ -236,7 +236,7 @@ library HonkVerificationKey {
     }
 }
 
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.23;
 
 type Fr is uint256;
 

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
-import {IVerifier} from "./Verifier.sol";
+pragma solidity =0.8.23;
+import "./Verifier.sol";
 import "solidity-utils/mixins/OnlyWethReceiver.sol";
-import {IPreInteraction} from "limit-order-protocol/interfaces/IPreInteraction.sol";
-import {IPostInteraction} from "limit-order-protocol/interfaces/IPostInteraction.sol";
-import {IOrderMixin} from "limit-order-protocol/interfaces/IOrderMixin.sol";
+import "limit-order-protocol/interfaces/IPreInteraction.sol";
+import "limit-order-protocol/interfaces/IPostInteraction.sol";
+import "limit-order-protocol/interfaces/IOrderMixin.sol";
+import "limit-order-protocol/OrderLib.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "./PoseidonT2.sol";
 import "./PoseidonT3.sol";
 import "./PoseidonT4.sol";
-import "solidity-utils/libraries/AddressLib.sol";
 
 import "./MerkleTreeWithHistory.sol";
 
@@ -20,7 +20,10 @@ contract Zeroinch is
     MerkleTreeWithHistory(10)
 {
     address private immutable _LIMIT_ORDER_PROTOCOL;
+    using OrderLib for IOrderMixin.Order;
     using AddressLib for Address;
+    using MakerTraitsLib for MakerTraits;
+    using ExtensionLib for bytes;
 
     modifier onlyLimitOrderProtocol() {
         if (msg.sender != _LIMIT_ORDER_PROTOCOL)
@@ -28,9 +31,10 @@ contract Zeroinch is
         _;
     }
     struct Note {
-        address asset_address;
+        address assetAddress;
         uint256 amount;
         bytes32 secretHash; // or cancel hash
+        bytes32 cancelHash;
     }
 
     struct ZKPinput {
@@ -38,16 +42,15 @@ contract Zeroinch is
         bytes32 orderHash;
         bytes32 precompSecret;
         Note orderAsset;
+        address orderAmount;
         bytes32[2] nullifier;
         bytes32[2] newNoteHash;
         bytes proof;
     }
+
     error OnlyLimitOrderProtocol();
     IVerifier _verifier;
-    enum OrderType {
-        SimpleLimit,
-        TWAP
-    }
+
     enum OrderStatus {
         NotExist,
         Open,
@@ -55,12 +58,12 @@ contract Zeroinch is
         Cancelled
     }
 
-    event newNote(
+    event NewLeaf(
+        bytes32 indexed secretHash,
         bytes32 indexed noteHash,
-        bytes32 indexed SecretHash,
-        uint inserted_index
+        uint256 indexed insertedIndex
     );
-    event newNote(bytes32 indexed noteHash, uint inserted_index);
+
     struct ZOrder {
         address asset;
         uint256 amount;
@@ -98,10 +101,10 @@ contract Zeroinch is
         require(!insertedNotes[noteHash]);
         uint256 inserted_index = _insert(noteHash);
         insertedNotes[noteHash] = true;
-        emit newNote(noteHash, secretHash, inserted_index);
+        emit NewLeaf(secretHash, noteHash, inserted_index);
     }
 
-    function deposit(bytes32 secretHash, address asset, uint256 amount) public {
+    function deposit(address asset, uint256 amount, bytes32 secretHash) public {
         // Handle ERC20 deposit
         require(IERC20(asset).transferFrom(msg.sender, address(this), amount));
         _createNote(asset, amount, secretHash);
@@ -110,7 +113,22 @@ contract Zeroinch is
     function packPublicInput(
         ZKPinput memory zkinput
     ) public pure returns (bytes32[] memory) {
-        bytes32[] memory publicInputs = new bytes32[](13);
+        bytes32[] memory publicInputs = new bytes32[](11);
+
+        publicInputs[0] = zkinput.merkleRoot;
+        publicInputs[1] = zkinput.orderHash;
+        publicInputs[2] = zkinput.precompSecret;
+        publicInputs[3] = bytes32(
+            uint256(uint160(zkinput.orderAsset.assetAddress))
+        ); // order asset
+        publicInputs[4] = bytes32(zkinput.orderAsset.amount); // order asset
+        publicInputs[5] = 0; // order asset
+        publicInputs[6] = 0; // order asset
+        publicInputs[7] = zkinput.nullifier[0]; // nullifier 0
+        publicInputs[8] = zkinput.nullifier[1]; // nullifier 1
+        publicInputs[9] = zkinput.newNoteHash[0]; // new note hash 0
+        publicInputs[10] = zkinput.newNoteHash[1]; // new note hash 1
+
         return publicInputs;
     }
 
@@ -118,35 +136,44 @@ contract Zeroinch is
         // require nullifier unused
         for (uint256 i = 0; i < zkinput.nullifier.length; i++) {
             if (zkinput.nullifier[i] != bytes32(0)) {
-                require(!nullifierHashes[zkinput.nullifier[i]]);
+                require(
+                    !nullifierHashes[zkinput.nullifier[i]],
+                    "nullifier used"
+                );
                 nullifierHashes[zkinput.nullifier[i]] = true;
             }
         }
+
         // require order not exist
         bytes32 orderHash = zkinput.orderHash;
         require(orderStatus[orderHash] == OrderStatus.NotExist);
         require(zeroinchOrder[orderHash].asset == address(0));
         require(zeroinchOrder[orderHash].amount == 0);
 
+        // verify zk proof
         _verify(zkinput.proof, packPublicInput(zkinput));
+
+        // insert new note (if any)
         if (zkinput.newNoteHash[0] != bytes32(0)) {
             uint inserted_index = _insert(zkinput.newNoteHash[0]);
             insertedNotes[zkinput.newNoteHash[0]] = true;
-            emit newNote(zkinput.newNoteHash[0], inserted_index);
+            emit NewLeaf(0, zkinput.newNoteHash[0], inserted_index);
         }
+
+        // insert new note (if any)
         if (zkinput.newNoteHash[1] != bytes32(0)) {
             uint inserted_index = _insert(zkinput.newNoteHash[1]);
             insertedNotes[zkinput.newNoteHash[1]] = true;
-            emit newNote(zkinput.newNoteHash[1], inserted_index);
+            emit NewLeaf(0, zkinput.newNoteHash[1], inserted_index);
         }
 
         // add order
         orderStatus[zkinput.orderHash] = OrderStatus.Open;
         zeroinchOrder[zkinput.orderHash] = ZOrder({
-            asset: zkinput.orderAsset.asset_address,
+            asset: zkinput.orderAsset.assetAddress,
             amount: zkinput.orderAsset.amount,
             secretHash: zkinput.precompSecret,
-            cancelHash: zkinput.orderAsset.secretHash
+            cancelHash: zkinput.orderAsset.cancelHash
         });
     }
 
@@ -159,6 +186,7 @@ contract Zeroinch is
         bytes32 orderHash = keccak256(
             abi.encodePacked(asset, amount, to, nonce)
         );
+
         require(orderStatus[orderHash] == OrderStatus.Open);
         require(zeroinchOrder[orderHash].asset == asset);
         require(zeroinchOrder[orderHash].amount == amount);
