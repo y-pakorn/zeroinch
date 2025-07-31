@@ -32,7 +32,7 @@ import { chain } from "@/config/chain"
 import { contracts } from "@/config/contract"
 import { images } from "@/config/image"
 import { tokens, WETH } from "@/config/token"
-import { getCombinedSecretHash, getRandomHex } from "@/lib/crypto"
+import { getCombinedSecretHash, getNoteHash, getRandomHex } from "@/lib/crypto"
 import {
   DepositWithdrawFormData,
   depositWithdrawFormSchema,
@@ -164,11 +164,12 @@ export function DepositWithdrawDialog({
       nonce: getRandomHex(),
       secret: getRandomHex(),
     }
+    const combinedSecretHash = getCombinedSecretHash(combinedSecret)
     const hash = await writeContractAsync({
       address: contracts.zeroinch.address,
       abi: contracts.zeroinch.abi,
       functionName: "deposit",
-      args: [tokenA, fullAmount, getCombinedSecretHash(combinedSecret)],
+      args: [tokenA, fullAmount, combinedSecretHash],
     })
     const receipt = await publicClient.waitForTransactionReceipt({
       hash,
@@ -184,7 +185,7 @@ export function DepositWithdrawDialog({
           noteHash: string
           insertedIndex: number
         }
-      | undefined = undefined
+      | undefined
     receipt.logs.forEach((log) => {
       try {
         const event = decodeEventLog({
@@ -197,6 +198,22 @@ export function DepositWithdrawDialog({
             noteHash: event.args.noteHash,
             insertedIndex: Number(event.args.insertedIndex),
           }
+          console.log(
+            "Found new leaf with hash",
+            newLeaf.noteHash,
+            "in index",
+            newLeaf.insertedIndex,
+            "combinedSecret hash",
+            event.args.secretHash,
+            "local combinedSecret hash",
+            combinedSecretHash
+          )
+          const notehash = getNoteHash({
+            asset_balance: fullAmount,
+            asset_address: tokenA,
+            combinedSecret,
+          })
+          console.log("JIT Note hash", notehash)
         }
       } catch (_) {}
     })
@@ -204,7 +221,7 @@ export function DepositWithdrawDialog({
       toast.error("Deposit note not found in event")
       return
     }
-    addNote(tokenA, amount, combinedSecret)
+    addNote(tokenA, amount, newLeaf.insertedIndex, combinedSecret)
     setOpen(false)
     form.resetField("amount")
     form.resetField("address")

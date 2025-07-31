@@ -12,12 +12,13 @@ export interface INote {
   hash: Hex
   balance: number
   address: Address
+  leafIndex: number
   _note: IPrimitiveNote
 }
 
 export interface IPrimitiveNote {
   combinedSecret: ICombinedSecret
-  asset_balance: string
+  asset_balance: bigint
   asset_address: Hex
 }
 
@@ -44,6 +45,7 @@ export interface IToken {
 
 export interface ILimitOrder {
   id: Hex
+  normalizedOrderHash: Hex
   type: "limit"
   baseTokenA: Address
   quoteTokenA: Address
@@ -57,6 +59,8 @@ export interface ILimitOrder {
   rate: number
   combinedSecret: ICombinedSecret
   oneInchOrder: LimitOrder
+  cancelPreImage: Hex
+  cancelHash: Hex
   filled?: {
     at: number
     noteHash: Hex

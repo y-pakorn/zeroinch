@@ -21,7 +21,8 @@ interface IAccountStore {
   addNote: (
     tokenA: Address,
     balance: number,
-    combinedSecret?: ICombinedSecret
+    leafIndex: number,
+    combinedSecret: ICombinedSecret
   ) => void
   removeNotes: (noteHashes: Hex[]) => void
   calculateNotes: (
@@ -48,13 +49,11 @@ export const useAccountStore = create<IAccountStore>()(
       addNote: (
         tokenA: Address,
         balance: number,
-        combinedSecret?: ICombinedSecret
+        leafIndex: number,
+        combinedSecret: ICombinedSecret
       ) => {
         const primitiveNote: IPrimitiveNote = {
-          combinedSecret: combinedSecret ?? {
-            secret: getRandomHex(),
-            nonce: getRandomHex(),
-          },
+          combinedSecret,
           asset_balance: bigNumberToBigInt(
             BigNumber(balance).shiftedBy(tokens[tokenA].decimals)
           ).toString(),
@@ -65,8 +64,10 @@ export const useAccountStore = create<IAccountStore>()(
           hash: getNoteHash(primitiveNote),
           balance,
           address: tokenA,
+          leafIndex,
           _note: primitiveNote,
         }
+        console.log("Inserting note with hash", note.hash)
         const account = get().account
         set({ account: { ...account, notes: [...account.notes, note] } })
       },

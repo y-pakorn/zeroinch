@@ -20,19 +20,37 @@ import {
   ZX,
 } from "@1inch/limit-order-sdk"
 import BigNumber from "bignumber.js"
+import _ from "lodash"
 import { useFormContext } from "react-hook-form"
 import { toast } from "sonner"
-import { Address, Hex } from "viem"
+import {
+  Address,
+  encodeAbiParameters,
+  Hex,
+  keccak256,
+  parseAbiParameter,
+} from "viem"
 import { serialize } from "wagmi"
 
 import { chain } from "@/config/chain"
 import { contracts } from "@/config/contract"
 import { tokens } from "@/config/token"
-import { getRandomHex } from "@/lib/crypto"
+import {
+  getCombinedSecretHash,
+  getEmptyMerkleProof,
+  getEmptyNote,
+  getLeafs,
+  getNoteHash,
+  getRandomHex,
+  hashTwoNormalized,
+  prove,
+  zeroMerkleTree,
+} from "@/lib/crypto"
 import { PlaceOrderFormData } from "@/lib/schema"
+import { useInternalBalances } from "@/hooks/use-internal-balances"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { useAccountStore } from "@/stores/account"
-import { ILimitOrder, IToken } from "@/types"
+import { ILimitOrder, IPrimitiveNote, IToken } from "@/types"
 
 import { Card, CardContent } from "./ui/card"
 
@@ -140,11 +158,20 @@ export const PlaceOrderProvider = ({
     }
   }, [errors, isSubmitting, isValid])
 
-  const { addOrder, account } = useAccountStore()
+  const internalBalances = useInternalBalances()
+  const { calculateNotes } = useAccountStore()
 
   const handleSubmit = async (data: PlaceOrderFormData) => {
     if (data.type === "twap") {
       toast.error("TWAP is not supported yet")
+      return
+    }
+
+    if (
+      !internalBalances[baseTokenA] ||
+      internalBalances[baseTokenA] < baseTokenAmount
+    ) {
+      toast.error("Insufficient internal balance")
       return
     }
 
@@ -185,9 +212,16 @@ export const PlaceOrderProvider = ({
       .build()
     const oneInchOrder = new LimitOrder(orderInfo, makerTraits, extension)
     const hash = oneInchOrder.getOrderHash(chain.id) as Hex
+    const cancelPreImage = getRandomHex()
+    const cancelHash = keccak256(
+      encodeAbiParameters([parseAbiParameter("bytes32 a")], [cancelPreImage])
+    )
+
+    const normalizedOrderHash = hashTwoNormalized(hash)
 
     const order: ILimitOrder = {
       id: hash,
+      normalizedOrderHash,
       type: "limit",
       baseTokenA: baseTokenA,
       quoteTokenA: quoteTokenA,
@@ -202,13 +236,95 @@ export const PlaceOrderProvider = ({
         nonce: getRandomHex(),
         secret: getRandomHex(),
       },
+      cancelPreImage,
+      cancelHash,
       oneInchOrder: oneInchOrder,
       rate,
     }
 
-    // addOrder(order)
+    const tree = await zeroMerkleTree()
+    const leafs = await getLeafs()
+    console.log("leafs", leafs)
+    tree.bulkInsert(leafs)
 
-    reset()
+    const calculatedNotes = calculateNotes(baseTokenA, baseTokenAmount)
+
+    if (calculatedNotes.notes.length > 2) {
+      toast.error("Sorry, too many notes :(")
+      return
+    }
+
+    let leftoverBalance = new BigNumber(
+      new BigNumber(calculatedNotes.totalBalance)
+        .minus(baseTokenAmount)
+        .shiftedBy(tokens[baseTokenA].decimals)
+    )
+
+    const outputNotes: IPrimitiveNote[] = []
+    if (leftoverBalance.gt(0)) {
+      const outputNote: IPrimitiveNote = {
+        combinedSecret: {
+          secret: getRandomHex(),
+          nonce: getRandomHex(),
+        },
+        asset_balance: BigInt(leftoverBalance.toFixed(0)),
+        asset_address: baseTokenA,
+      }
+      outputNotes.push(outputNote)
+    }
+
+    const merkleRoot = tree.root as Hex
+    const precompSecret = getCombinedSecretHash(order.combinedSecret)
+
+    console.log(calculatedNotes)
+
+    const inputNote1Proof = calculatedNotes.notes[0]?.leafIndex
+      ? {
+          index: calculatedNotes.notes[0].leafIndex,
+          path: tree.proof(calculatedNotes.notes[0].hash).pathElements as Hex[],
+        }
+      : getEmptyMerkleProof()
+    const inputNote2Proof = calculatedNotes.notes[1]?.leafIndex
+      ? {
+          index: calculatedNotes.notes[1].leafIndex,
+          path: tree.proof(calculatedNotes.notes[1].hash).pathElements as Hex[],
+        }
+      : getEmptyMerkleProof()
+    const inputNote1 = calculatedNotes.notes[0]?._note || getEmptyNote()
+    const inputNote2 = calculatedNotes.notes[1]?._note || getEmptyNote()
+
+    const outputNote1 = outputNotes[0] || getEmptyNote()
+    const outputNote2 = outputNotes[1] || getEmptyNote()
+
+    const outputNote1Hash = getNoteHash(outputNote1)
+    const outputNote2Hash = getNoteHash(outputNote2)
+
+    const proof = await prove({
+      merkle_root: merkleRoot,
+      included_asset: [baseTokenA, quoteTokenA],
+      order_hash: normalizedOrderHash,
+      precomp_secret: precompSecret,
+      order_asset: {
+        combinedSecret: {
+          nonce: "0x00",
+          secret: "0x00",
+        },
+        asset_balance: makingAmount,
+        asset_address: baseTokenA,
+      },
+      nullifier: [
+        inputNote1.combinedSecret.nonce,
+        inputNote2.combinedSecret.nonce,
+      ],
+      inclusion_proof: [inputNote1Proof, inputNote2Proof],
+      new_note_hash: [outputNote1Hash, outputNote2Hash],
+      input_note: [inputNote1, inputNote2],
+      output_note: [outputNote1, outputNote2],
+    })
+
+    console.log(proof)
+
+    // reset()
   }
 
   return (

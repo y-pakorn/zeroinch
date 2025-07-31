@@ -41,6 +41,7 @@ contract Zeroinch is
     struct ZKPinput {
         bytes32 merkleRoot;
         bytes32 orderHash;
+        bytes32 normalizedOrderHash;
         bytes32 precompSecret;
         OrderNote orderAsset;
         address orderAmount;
@@ -117,7 +118,7 @@ contract Zeroinch is
         bytes32[] memory publicInputs = new bytes32[](11);
 
         publicInputs[0] = zkinput.merkleRoot;
-        publicInputs[1] = zkinput.orderHash;
+        publicInputs[1] = zkinput.normalizedOrderHash;
         publicInputs[2] = zkinput.precompSecret;
         publicInputs[3] = bytes32(
             uint256(uint160(zkinput.orderAsset.assetAddress))

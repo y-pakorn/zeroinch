@@ -27,6 +27,7 @@ contract MerkleTreeWithHistory {
     // it removes index range check on every interaction
     mapping(uint256 => bytes32) public filledSubtrees;
     mapping(uint256 => bytes32) public roots;
+    mapping(uint256 => bytes32) public leaves;
     uint32 public constant ROOT_HISTORY_SIZE = 30;
     uint32 public currentRootIndex = 0;
     uint32 public nextIndex = 0;
@@ -88,6 +89,7 @@ contract MerkleTreeWithHistory {
         }
 
         uint32 newRootIndex = (currentRootIndex + 1) % ROOT_HISTORY_SIZE;
+        leaves[_nextIndex] = _leaf;
         currentRootIndex = newRootIndex;
         roots[newRootIndex] = currentLevelHash;
         nextIndex = _nextIndex + 1;

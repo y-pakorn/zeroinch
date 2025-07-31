@@ -1,6 +1,6 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit"
 import { getConnections } from "@wagmi/core"
-import { parseAbi } from "viem"
+import { createPublicClient, http, parseAbi } from "viem"
 import { cookieStorage, createStorage } from "wagmi"
 
 import { env } from "@/env.mjs"
@@ -30,3 +30,14 @@ export const web3Config = getDefaultConfig({
 })
 
 export const connections = getConnections(web3Config)
+
+export const client = createPublicClient({
+  chain: chain,
+  transport: http(),
+  batch: {
+    multicall: {
+      batchSize: 16_384,
+      wait: 50,
+    },
+  },
+})

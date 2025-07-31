@@ -1,12 +1,19 @@
 import { MerkleTree } from "fixed-merkle-tree"
 import _ from "lodash"
 import { poseidon2, poseidon3 } from "poseidon-lite"
-import { fromBytes, fromHex, Hex, toHex } from "viem"
+import { fromBytes, fromHex, Hex, hexToBigInt, pad, padHex, toHex } from "viem"
 
+import { contracts } from "@/config/contract"
+import { client } from "@/config/web3"
 import { ICombinedSecret, IPrimitiveNote } from "@/types"
 
 const n =
   21888242871839275222246405745257275088548364400416034343698204186575808495617n
+
+export const hashTwoNormalized = (h: Hex) => {
+  const normalizedH = hexToBigInt(h) % n
+  return toHex(poseidon2([normalizedH, normalizedH]))
+}
 
 export const getRandomHex = () => {
   return toHex(
@@ -17,13 +24,15 @@ export const getRandomHex = () => {
 export const getNoteHash = (note: IPrimitiveNote) => {
   // First hash the combined secret: H(secret, nonce)
   const combinedSecretHash = getCombinedSecretHash(note.combinedSecret)
-  // Then hash: H(asset_address, amount, H(secret, nonce))
   return toHex(
     poseidon3([
       fromHex(note.asset_address, "bigint"),
       BigInt(note.asset_balance),
       fromHex(combinedSecretHash, "bigint"),
-    ])
+    ]),
+    {
+      size: 32,
+    }
   )
 }
 
@@ -32,7 +41,10 @@ export const getCombinedSecretHash = (combinedSecret: ICombinedSecret) => {
     poseidon2([
       fromHex(combinedSecret.secret, "bigint"),
       fromHex(combinedSecret.nonce, "bigint"),
-    ])
+    ]),
+    {
+      size: 32,
+    }
   )
 }
 
@@ -45,7 +57,7 @@ export const getEmptyMerkleProof = (): { index: number; path: Hex[] } => {
 
 export const getEmptyNote = (assetAddress: Hex = "0x00"): IPrimitiveNote => {
   return {
-    asset_balance: "0x00",
+    asset_balance: 0n,
     asset_address: assetAddress,
     combinedSecret: {
       nonce: "0x00",
@@ -54,70 +66,31 @@ export const getEmptyNote = (assetAddress: Hex = "0x00"): IPrimitiveNote => {
   }
 }
 
-export const testCrypto = async () => {
-  const tree = await zeroMerkleTree()
+export const getLeafs = async () => {
+  const leafCount = await client
+    .readContract({
+      address: contracts.zeroinch.address,
+      abi: contracts.zeroinch.abi,
+      functionName: "nextIndex",
+    })
+    .then((d) => Number(d))
 
-  const firstNote: IPrimitiveNote = {
-    asset_balance: toHex(100n),
-    asset_address: "0x01",
-    combinedSecret: {
-      nonce: getRandomHex(),
-      secret: getRandomHex(),
-    },
-  }
+  const leafs = await client
+    .multicall({
+      contracts: _.range(leafCount).map((i) => ({
+        address: contracts.zeroinch.address,
+        abi: contracts.zeroinch.abi,
+        functionName: "leafs",
+        args: [i],
+      })),
+      allowFailure: false,
+    })
+    .then((d) => d.map((d) => d as unknown as Hex))
 
-  const toFirstNote: IPrimitiveNote = {
-    asset_balance: toHex(60n),
-    asset_address: "0x01",
-    combinedSecret: {
-      nonce: getRandomHex(),
-      secret: getRandomHex(),
-    },
-  }
-
-  const toSecondNote: IPrimitiveNote = {
-    asset_balance: toHex(40n),
-    asset_address: "0x01",
-    combinedSecret: {
-      nonce: getRandomHex(),
-      secret: getRandomHex(),
-    },
-  }
-
-  const firstNoteHash = getNoteHash(firstNote)
-  const toFirstNoteHash = getNoteHash(toFirstNote)
-  const toSecondNoteHash = getNoteHash(toSecondNote)
-
-  tree.insert(firstNoteHash)
-
-  const merkleProof = tree.path(0)
-
-  console.log("Start proving")
-  const now = performance.now()
-
-  const proof = await prove({
-    merkle_root: tree.root as Hex,
-    order_hash: getRandomHex(),
-    precomp_secret: getRandomHex(),
-    included_asset: ["0x01", "0x02"],
-    input_note: [firstNote, getEmptyNote()],
-    output_note: [toFirstNote, toSecondNote],
-    inclusion_proof: [
-      {
-        index: 0,
-        path: merkleProof.pathElements as Hex[],
-      },
-      getEmptyMerkleProof(),
-    ],
-    order_asset: getEmptyNote(),
-    new_note_hash: [toFirstNoteHash, toSecondNoteHash],
-    nullifier: [firstNote.combinedSecret.nonce, "0x00"],
-  })
-
-  const end = performance.now()
-  console.log(`Proving took ${end - now}ms`)
-  console.log(proof)
+  return leafs
 }
+
+export const testCrypto = async () => {}
 
 export const zeroMerkleTree = async () => {
   const tree = new MerkleTree(10, [], {
