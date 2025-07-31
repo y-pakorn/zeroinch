@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 import {IVerifier} from "./Verifier.sol";
-import "@1inch/solidity-utils/contracts/mixins/OnlyWethReceiver.sol";
+import "solidity-utils/mixins/OnlyWethReceiver.sol";
 import {IPreInteraction} from "limit-order-protocol/interfaces/IPreInteraction.sol";
 import {IPostInteraction} from "limit-order-protocol/interfaces/IPostInteraction.sol";
 import {IOrderMixin} from "limit-order-protocol/interfaces/IOrderMixin.sol";
@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "./PoseidonT2.sol";
 import "./PoseidonT3.sol";
 import "./PoseidonT4.sol";
-import "@1inch/solidity-utils/contracts/libraries/AddressLib.sol";
+import "solidity-utils/libraries/AddressLib.sol";
 
 import "./MerkleTreeWithHistory.sol";
 

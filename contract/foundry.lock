@@ -1,0 +1,17 @@
+{
+  "lib/openzeppelin-contracts": {
+    "rev": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0"
+  },
+  "lib/limit-order-protocol": {
+    "tag": {
+      "name": "4.3.2",
+      "rev": "67c56aee3b6a9f4982bf487084bd8da1f6638da0"
+    }
+  },
+  "lib/solidity-utils": {
+    "tag": {
+      "name": "6.6.0",
+      "rev": "948af77af88f103876f8895c0806a08167f97543"
+    }
+  }
+}
