@@ -106,7 +106,10 @@ contract Zeroinch is
 
     function deposit(address asset, uint256 amount, bytes32 secretHash) public {
         // Handle ERC20 deposit
-        require(IERC20(asset).transferFrom(msg.sender, address(this), amount));
+        require(
+            IERC20(asset).transferFrom(msg.sender, address(this), amount),
+            "transfer failed"
+        );
         _createNote(asset, amount, secretHash);
     }
 
@@ -195,9 +198,9 @@ contract Zeroinch is
             abi.encodePacked(asset, amount, to, nonce)
         );
 
-        require(orderStatus[orderHash] == OrderStatus.Open);
-        require(zeroinchOrder[orderHash].asset == asset);
-        require(zeroinchOrder[orderHash].amount == amount);
+        require(orderStatus[orderHash] == OrderStatus.Open, "order not open");
+        require(zeroinchOrder[orderHash].asset == asset, "asset mismatch");
+        require(zeroinchOrder[orderHash].amount == amount, "amount mismatch");
 
         orderStatus[orderHash] = OrderStatus.Done;
 

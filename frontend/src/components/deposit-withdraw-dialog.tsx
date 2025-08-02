@@ -331,7 +331,7 @@ export function DepositWithdrawDialog({
     const orderHash = keccak256(
       encodePacked(
         ["address", "uint256", "address", "uint256"],
-        [address, amountBigInt, tokenA, randomHash]
+        [tokenA, amountBigInt, address, randomHash]
       )
     )
     const normalizedOrderHash = hashTwoNormalized(orderHash)
@@ -511,6 +511,11 @@ export function DepositWithdrawDialog({
       })
       return
     }
+
+    setOpen(false)
+    form.resetField("amount")
+    form.resetField("address")
+    toast.success("Withdraw successfully")
   }
 
   const internalBalances = useInternalBalances()
