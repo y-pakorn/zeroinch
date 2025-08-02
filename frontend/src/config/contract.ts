@@ -13,6 +13,7 @@ export const contracts = {
       "function leaves(uint256 index) public view returns (bytes32)",
       "function nextIndex() public view returns (uint256)",
       "function cancel(bytes32 orderHash, bytes32 preimage) external",
+      "function withdraw(address asset, uint256 amount, address to, uint256 nonce) public",
       "event NewLeaf(bytes32 indexed secretHash, bytes32 indexed noteHash, uint256 indexed insertedIndex)",
     ]),
   },
