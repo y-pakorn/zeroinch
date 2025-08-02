@@ -18,7 +18,8 @@ import "./MerkleTreeWithHistory.sol";
 contract Zeroinch is
     IPreInteraction,
     IPostInteraction,
-    MerkleTreeWithHistory(10)
+    MerkleTreeWithHistory(10),
+    IERC1271
 {
     address private immutable _LIMIT_ORDER_PROTOCOL;
     using OrderLib for IOrderMixin.Order;
@@ -217,9 +218,15 @@ contract Zeroinch is
         uint256,
         bytes calldata
     ) external onlyLimitOrderProtocol {
-        require(orderStatus[orderHash] == OrderStatus.Open);
-        require(zeroinchOrder[orderHash].asset == _order.makerAsset.get());
-        require(zeroinchOrder[orderHash].amount == _order.makingAmount);
+        require(orderStatus[orderHash] == OrderStatus.Open, "order not open");
+        require(
+            zeroinchOrder[orderHash].asset == _order.makerAsset.get(),
+            "maker asset not match"
+        );
+        require(
+            zeroinchOrder[orderHash].amount == _order.makingAmount,
+            "amount not match"
+        );
         IERC20(_order.makerAsset.get()).approve(
             _LIMIT_ORDER_PROTOCOL,
             _order.makingAmount
@@ -229,8 +236,10 @@ contract Zeroinch is
     function cancel(bytes32 orderHash, bytes32 preimage) external {
         require(
             keccak256(abi.encode(preimage)) ==
-                zeroinchOrder[orderHash].cancelHash
+                zeroinchOrder[orderHash].cancelHash,
+            "cancel hash not match"
         );
+        require(orderStatus[orderHash] == OrderStatus.Open, "order not open");
         orderStatus[orderHash] = OrderStatus.Cancelled;
         _createNote(
             zeroinchOrder[orderHash].asset,
@@ -264,7 +273,8 @@ contract Zeroinch is
         bytes32 orderHash,
         bytes calldata
     ) external view returns (bytes4) {
-        if (orderStatus[orderHash] == OrderStatus.Open) {
+        OrderStatus status = orderStatus[orderHash];
+        if (status == OrderStatus.Open) {
             return IERC1271.isValidSignature.selector;
         } else {
             return 0xffffffff;
