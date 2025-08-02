@@ -19,6 +19,7 @@ import {
 interface IAccountStore {
   account: IAccount
   addOrder: (order: IOrder) => void
+  cancelOrder: (id: Hex, orderCacelParams: IOrder["cancelled"]) => void
   addNote: (
     tokenA: Address,
     balance: bigint,
@@ -48,6 +49,25 @@ export const useAccountStore = create<IAccountStore>()(
       addOrder: (order: IOrder) => {
         const account = get().account
         set({ account: { ...account, orders: [...account.orders, order] } })
+      },
+      cancelOrder: (id: Hex, orderCacelParams: IOrder["cancelled"]) => {
+        // set "cancelled" field to orderCacelParams
+        const account = get().account
+        const order = account.orders.find((order) => order.id === id)
+        if (!order) {
+          return
+        }
+        order.cancelled = orderCacelParams
+        set({
+          account: {
+            ...account,
+            orders: account.orders.map((order) =>
+              order.id === id
+                ? { ...order, cancelled: orderCacelParams }
+                : order
+            ),
+          },
+        })
       },
       addNote: (
         tokenA: Address,
