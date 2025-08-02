@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Extension, LimitOrder } from "@1inch/limit-order-sdk"
 import { useMutation } from "@tanstack/react-query"
@@ -35,26 +35,29 @@ export default function OrderListCard() {
 
   return (
     <div className="space-y-2">
-      <div className="text-muted-foreground text-2xl font-semibold">
-        <span
-          className={cn(
-            type === "active-limit" && "text-foreground",
-            "cursor-pointer"
-          )}
-          onClick={() => setType("active-limit")}
-        >
-          Limit Orders
-        </span>
-        /
-        <span
-          className={cn(
-            type === "history" && "text-foreground",
-            "cursor-pointer"
-          )}
-          onClick={() => setType("history")}
-        >
-          Order History
-        </span>
+      <div className="flex items-center justify-between">
+        <div className="text-muted-foreground text-2xl font-semibold">
+          <span
+            className={cn(
+              type === "active-limit" && "text-foreground",
+              "cursor-pointer"
+            )}
+            onClick={() => setType("active-limit")}
+          >
+            Limit Orders
+          </span>
+          /
+          <span
+            className={cn(
+              type === "history" && "text-foreground",
+              "cursor-pointer"
+            )}
+            onClick={() => setType("history")}
+          >
+            Order History
+          </span>
+        </div>
+        <div className="text-2xl font-semibold">Auto Fill</div>
       </div>
       {type === "active-limit" && (
         <Table>
@@ -303,9 +306,13 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
       if (!tx) return
 
       setIsFilling(true)
-      const txReceipt = await client.waitForTransactionReceipt({
+      const txReceiptPromise = client.waitForTransactionReceipt({
         hash: tx,
       })
+      toast.promise(txReceiptPromise, {
+        loading: "Filling order...",
+      })
+      const txReceipt = await txReceiptPromise
       if (txReceipt.status !== "success") {
         toast.error("Failed to fill order", {
           description: "Transaction reverted",
@@ -360,6 +367,17 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
     },
   })
 
+  useEffect(() => {
+    if (shouldRetry) {
+      // auto run every 25s
+      fillOrder.mutate()
+      const interval = setInterval(() => {
+        fillOrder.mutate()
+      }, 25000)
+      return () => clearInterval(interval)
+    }
+  }, [shouldRetry])
+
   return (
     <TableRow key={order.id}>
       <TableCell>
@@ -406,12 +424,12 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
           ? formatter.timeRelative(order.expiredAt / 1000)
           : "Expired"}
       </TableCell>
-      <TableCell>
+      <TableCell className="flex items-center gap-2">
         <Button
           variant="outline"
           size="sm"
           onClick={() => cancelOrder.mutate()}
-          disabled={cancelOrder.isPending}
+          disabled={cancelOrder.isPending || fillOrder.isPending}
         >
           {cancelOrder.isPending ? (
             <>

@@ -238,6 +238,7 @@ export const PlaceOrderProvider = ({
       .enablePostInteraction()
       .enablePreInteraction()
       .withExtension()
+      .withNonce(randBigInt(4294967295n))
 
     const extension = new ExtensionBuilder()
       .withPostInteraction(
