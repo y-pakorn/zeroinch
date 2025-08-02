@@ -2,15 +2,15 @@ import { parseAbi } from "viem"
 
 export const contracts = {
   zeroinch: {
-    address: "0x2e0a688724df311a2b5028763ea8ac42ea3f3f87",
+    address: "0x1AD9BbfD8Bb4Af4406B39bd2ee83a9663A8AE003",
     abi: parseAbi([
       "struct OrderNote { address assetAddress; uint256 amount; bytes32 cancelHash; }",
-      "struct ZKPinput { bytes32 merkleRoot; bytes32 orderHash; bytes32 normalizedOrderHash; bytes32 precompSecret; OrderNote orderAsset; address orderAmount; bytes32[2] nullifier; bytes32[2] newNoteHash; bytes proof; }",
+      "struct ZKPinput { bytes32 merkleRoot; bytes32 orderHash; bytes32 normalizedOrderHash; bytes32 precompSecret; OrderNote orderAsset; bytes32[2] nullifier; bytes32[2] newNoteHash; }",
       "function deposit(address asset, uint256 amount, bytes32 secretHash) public",
-      "function order(ZKPinput calldata zkpInput) public",
+      "function order(ZKPinput calldata zkpInput, bytes calldata proof) public",
       "function cancel(bytes32 orderHash, bytes32 preimage) public",
       "function roots(uint256 index) public view returns (bytes32)",
-      "function leafs(uint256 index) public view returns (bytes32)",
+      "function leaves(uint256 index) public view returns (bytes32)",
       "function nextIndex() public view returns (uint256)",
       "event NewLeaf(bytes32 indexed secretHash, bytes32 indexed noteHash, uint256 indexed insertedIndex)",
     ]),

@@ -29,8 +29,9 @@ import {
   Hex,
   keccak256,
   parseAbiParameter,
+  toHex,
 } from "viem"
-import { serialize } from "wagmi"
+import { serialize, usePublicClient, useWriteContract } from "wagmi"
 
 import { chain } from "@/config/chain"
 import { contracts } from "@/config/contract"
@@ -44,9 +45,11 @@ import {
   getRandomHex,
   hashTwoNormalized,
   prove,
+  zeroBytes,
   zeroMerkleTree,
 } from "@/lib/crypto"
 import { PlaceOrderFormData } from "@/lib/schema"
+import { bigNumberToBigInt } from "@/lib/utils"
 import { useInternalBalances } from "@/hooks/use-internal-balances"
 import { useMarketPrice } from "@/hooks/use-market-price"
 import { useAccountStore } from "@/stores/account"
@@ -161,6 +164,9 @@ export const PlaceOrderProvider = ({
   const internalBalances = useInternalBalances()
   const { calculateNotes } = useAccountStore()
 
+  const client = usePublicClient()
+  const { writeContractAsync } = useWriteContract()
+
   const handleSubmit = async (data: PlaceOrderFormData) => {
     if (data.type === "twap") {
       toast.error("TWAP is not supported yet")
@@ -244,7 +250,7 @@ export const PlaceOrderProvider = ({
 
     const tree = await zeroMerkleTree()
     const leafs = await getLeafs()
-    console.log("leafs", leafs)
+    console.log("Leafs", leafs)
     tree.bulkInsert(leafs)
 
     const calculatedNotes = calculateNotes(baseTokenA, baseTokenAmount)
@@ -267,7 +273,7 @@ export const PlaceOrderProvider = ({
           secret: getRandomHex(),
           nonce: getRandomHex(),
         },
-        asset_balance: BigInt(leftoverBalance.toFixed(0)),
+        asset_balance: bigNumberToBigInt(leftoverBalance),
         asset_address: baseTokenA,
       }
       outputNotes.push(outputNote)
@@ -276,28 +282,34 @@ export const PlaceOrderProvider = ({
     const merkleRoot = tree.root as Hex
     const precompSecret = getCombinedSecretHash(order.combinedSecret)
 
-    console.log(calculatedNotes)
-
-    const inputNote1Proof = calculatedNotes.notes[0]?.leafIndex
-      ? {
-          index: calculatedNotes.notes[0].leafIndex,
-          path: tree.proof(calculatedNotes.notes[0].hash).pathElements as Hex[],
-        }
-      : getEmptyMerkleProof()
-    const inputNote2Proof = calculatedNotes.notes[1]?.leafIndex
-      ? {
-          index: calculatedNotes.notes[1].leafIndex,
-          path: tree.proof(calculatedNotes.notes[1].hash).pathElements as Hex[],
-        }
-      : getEmptyMerkleProof()
+    const inputNote1Proof =
+      calculatedNotes.notes[0]?.leafIndex !== undefined
+        ? {
+            index: calculatedNotes.notes[0].leafIndex,
+            path: tree.proof(calculatedNotes.notes[0].hash)
+              .pathElements as Hex[],
+          }
+        : getEmptyMerkleProof()
+    const inputNote2Proof =
+      calculatedNotes.notes[1]?.leafIndex !== undefined
+        ? {
+            index: calculatedNotes.notes[1].leafIndex,
+            path: tree.proof(calculatedNotes.notes[1].hash)
+              .pathElements as Hex[],
+          }
+        : getEmptyMerkleProof()
     const inputNote1 = calculatedNotes.notes[0]?._note || getEmptyNote()
     const inputNote2 = calculatedNotes.notes[1]?._note || getEmptyNote()
 
     const outputNote1 = outputNotes[0] || getEmptyNote()
     const outputNote2 = outputNotes[1] || getEmptyNote()
 
-    const outputNote1Hash = getNoteHash(outputNote1)
-    const outputNote2Hash = getNoteHash(outputNote2)
+    const outputNote1Hash = outputNotes[0]
+      ? getNoteHash(outputNote1)
+      : zeroBytes
+    const outputNote2Hash = outputNotes[1]
+      ? getNoteHash(outputNote2)
+      : zeroBytes
 
     const proof = await prove({
       merkle_root: merkleRoot,
@@ -306,8 +318,8 @@ export const PlaceOrderProvider = ({
       precomp_secret: precompSecret,
       order_asset: {
         combinedSecret: {
-          nonce: "0x00",
-          secret: "0x00",
+          nonce: zeroBytes,
+          secret: zeroBytes,
         },
         asset_balance: makingAmount,
         asset_address: baseTokenA,
@@ -323,6 +335,46 @@ export const PlaceOrderProvider = ({
     })
 
     console.log(proof)
+
+    const tx = await writeContractAsync({
+      address: contracts.zeroinch.address,
+      abi: contracts.zeroinch.abi,
+      functionName: "order",
+      args: [
+        {
+          merkleRoot,
+          normalizedOrderHash,
+          newNoteHash: [outputNote1Hash, outputNote2Hash],
+          orderHash: hash,
+          precompSecret,
+          orderAsset: {
+            assetAddress: baseTokenA,
+            amount: makingAmount,
+            cancelHash: order.cancelHash,
+          },
+          nullifier: [
+            inputNote1.combinedSecret.nonce,
+            inputNote2.combinedSecret.nonce,
+          ],
+        },
+        toHex(proof.proof),
+      ],
+    })
+
+    const receipt = await client.waitForTransactionReceipt({
+      hash: tx,
+    })
+
+    if (receipt.status === "reverted") {
+      toast.error("Order submission failed", {
+        description: receipt.transactionHash,
+      })
+      return
+    }
+
+    toast.success("Order submitted", {
+      description: receipt.transactionHash,
+    })
 
     // reset()
   }

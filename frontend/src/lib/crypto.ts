@@ -10,6 +10,9 @@ import { ICombinedSecret, IPrimitiveNote } from "@/types"
 const n =
   21888242871839275222246405745257275088548364400416034343698204186575808495617n
 
+export const zeroBytes =
+  "0x0000000000000000000000000000000000000000000000000000000000000000"
+
 export const hashTwoNormalized = (h: Hex) => {
   const normalizedH = hexToBigInt(h) % n
   return toHex(poseidon2([normalizedH, normalizedH]))
@@ -51,7 +54,7 @@ export const getCombinedSecretHash = (combinedSecret: ICombinedSecret) => {
 export const getEmptyMerkleProof = (): { index: number; path: Hex[] } => {
   return {
     index: 0,
-    path: _.range(10).map(() => "0x00"),
+    path: _.range(10).map(() => zeroBytes),
   }
 }
 
@@ -60,8 +63,8 @@ export const getEmptyNote = (assetAddress: Hex = "0x00"): IPrimitiveNote => {
     asset_balance: 0n,
     asset_address: assetAddress,
     combinedSecret: {
-      nonce: "0x00",
-      secret: "0x00",
+      nonce: zeroBytes,
+      secret: zeroBytes,
     },
   }
 }
@@ -80,7 +83,7 @@ export const getLeafs = async () => {
       contracts: _.range(leafCount).map((i) => ({
         address: contracts.zeroinch.address,
         abi: contracts.zeroinch.abi,
-        functionName: "leafs",
+        functionName: "leaves",
         args: [i],
       })),
       allowFailure: false,
@@ -142,29 +145,51 @@ export const prove = async ({
 
   const noteToInput = (note: IPrimitiveNote) => {
     return {
-      asset_address: note.asset_address,
-      amount: toHex(BigInt(note.asset_balance)),
+      asset_address: pad(note.asset_address, {
+        size: 32,
+      }),
+      amount: toHex(note.asset_balance, { size: 32 }),
       secret: {
-        secret: note.combinedSecret.secret,
-        nonce: note.combinedSecret.nonce,
+        secret: pad(note.combinedSecret.secret, {
+          size: 32,
+        }),
+        nonce: pad(note.combinedSecret.nonce, {
+          size: 32,
+        }),
       },
     }
   }
 
-  const witness = await prover.execute({
-    merkle_root,
-    order_hash,
-    precomp_secret,
+  const proverInput = {
+    merkle_root: pad(merkle_root, {
+      size: 32,
+    }),
+    order_hash: pad(order_hash, {
+      size: 32,
+    }),
+    precomp_secret: pad(precomp_secret, {
+      size: 32,
+    }),
     order_asset: noteToInput(order_asset),
-    nullifier,
-    new_note_hash,
-    included_asset,
+    nullifier: nullifier.map((n) => pad(n, { size: 32 })),
+    new_note_hash: new_note_hash.map((n) => pad(n, { size: 32 })),
+    included_asset: included_asset.map((n) => pad(n, { size: 32 })),
     input_note: input_note.map(noteToInput),
     output_note: output_note.map(noteToInput),
-    inclusion_proof,
+    inclusion_proof: inclusion_proof.map((p) => ({
+      index: p.index,
+      path: p.path.map((n) => pad(n, { size: 32 })),
+    })),
+  }
+
+  console.log(proverInput)
+
+  const witness = await prover.execute(proverInput)
+  const proof = await backend.generateProof(witness.witness, {
+    keccak: true,
   })
 
-  const proof = await backend.generateProof(witness.witness)
+  console.log(proof)
 
   return proof
 }

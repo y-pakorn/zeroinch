@@ -9,7 +9,7 @@ import "limit-order-protocol/OrderLib.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-import "./Verifier.sol";
+import "./HonkVerifier.sol";
 import "./PoseidonT2.sol";
 import "./PoseidonT3.sol";
 import "./PoseidonT4.sol";
@@ -46,7 +46,6 @@ contract Zeroinch is
         OrderNote orderAsset;
         bytes32[2] nullifier;
         bytes32[2] newNoteHash;
-        bytes proof;
     }
 
     error OnlyLimitOrderProtocol();
@@ -83,7 +82,7 @@ contract Zeroinch is
     }
 
     function _verify(
-        bytes memory _proof,
+        bytes calldata _proof,
         bytes32[] memory _publicInputs
     ) internal view {
         require(_verifier.verify(_proof, _publicInputs), "invalid proof");
@@ -133,7 +132,7 @@ contract Zeroinch is
         return publicInputs;
     }
 
-    function order(ZKPinput calldata zkinput) public {
+    function order(ZKPinput calldata zkinput, bytes calldata proof) public {
         // require nullifier unused
         for (uint256 i = 0; i < zkinput.nullifier.length; i++) {
             if (zkinput.nullifier[i] != bytes32(0)) {
@@ -146,7 +145,7 @@ contract Zeroinch is
         }
 
         // verify zk proof
-        _verify(zkinput.proof, packPublicInput(zkinput));
+        _verify(proof, packPublicInput(zkinput));
 
         // insert new note (if any)
         if (zkinput.newNoteHash[0] != bytes32(0)) {

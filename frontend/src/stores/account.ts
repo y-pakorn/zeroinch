@@ -4,9 +4,10 @@ import { deserialize, serialize } from "wagmi"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import { contracts } from "@/config/contract"
 import { tokens } from "@/config/token"
 import { getNoteHash, getRandomHex } from "@/lib/crypto"
-import { bigNumberToBigInt } from "@/lib/utils"
+import { bigIntToBigNumber, bigNumberToBigInt } from "@/lib/utils"
 import {
   IAccount,
   ICombinedSecret,
@@ -20,7 +21,7 @@ interface IAccountStore {
   addOrder: (order: IOrder) => void
   addNote: (
     tokenA: Address,
-    balance: number,
+    balance: bigint,
     leafIndex: number,
     combinedSecret: ICombinedSecret
   ) => void
@@ -48,21 +49,21 @@ export const useAccountStore = create<IAccountStore>()(
       },
       addNote: (
         tokenA: Address,
-        balance: number,
+        balance: bigint,
         leafIndex: number,
         combinedSecret: ICombinedSecret
       ) => {
         const primitiveNote: IPrimitiveNote = {
           combinedSecret,
-          asset_balance: bigNumberToBigInt(
-            BigNumber(balance).shiftedBy(tokens[tokenA].decimals)
-          ).toString(),
+          asset_balance: balance,
           asset_address: tokenA,
         }
         const note: INote = {
           addedAt: Date.now(),
           hash: getNoteHash(primitiveNote),
-          balance,
+          balance: bigIntToBigNumber(balance)
+            .shiftedBy(-tokens[tokenA].decimals)
+            .toNumber(),
           address: tokenA,
           leafIndex,
           _note: primitiveNote,
@@ -102,7 +103,7 @@ export const useAccountStore = create<IAccountStore>()(
       },
     }),
     {
-      name: `account-storage-v0.0.03`,
+      name: `account-storage-v0.0.03-${contracts.zeroinch.address}`,
       storage: createJSONStorage(() => localStorage, {
         replacer: (_, value) => {
           return serialize(value)

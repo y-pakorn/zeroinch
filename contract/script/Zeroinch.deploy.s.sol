@@ -3,7 +3,7 @@ pragma solidity =0.8.23;
 
 import "forge-std/Script.sol";
 import "../src/Zeroinch.sol";
-import "../src/Verifier.sol";
+import "../src/HonkVerifier.sol";
 
 contract Deploy is Script {
     // ARB addresses
@@ -39,28 +39,5 @@ contract Deploy is Script {
         console.log("Network: Arbitrum");
         console.log("Limit Order Protocol:", LIMIT_ORDER_PROTOCOL);
         console.log("Verifier:", address(verifier));
-        console.log("Zeroinch:", address(zeroinch));
-
-        console.log("\n=== Verification Commands ===");
-        console.log("Verify Verifier:");
-        console.log(
-            string.concat(
-                "forge verify-contract ",
-                vm.toString(address(verifier)),
-                " src/Verifier.sol:Verifier --chain optimism"
-            )
-        );
-
-        console.log("Verify Zeroinch:");
-        console.log(
-            string.concat(
-                "forge verify-contract ",
-                vm.toString(address(zeroinch)),
-                " src/Zeroinch.sol:Zeroinch --chain optimism --constructor-args ",
-                vm.toString(address(verifier)),
-                " ",
-                vm.toString(LIMIT_ORDER_PROTOCOL)
-            )
-        );
     }
 }

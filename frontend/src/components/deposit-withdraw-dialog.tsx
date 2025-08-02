@@ -221,7 +221,7 @@ export function DepositWithdrawDialog({
       toast.error("Deposit note not found in event")
       return
     }
-    addNote(tokenA, amount, newLeaf.insertedIndex, combinedSecret)
+    addNote(tokenA, fullAmount, newLeaf.insertedIndex, combinedSecret)
     setOpen(false)
     form.resetField("amount")
     form.resetField("address")
