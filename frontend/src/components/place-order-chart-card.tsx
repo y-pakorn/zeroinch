@@ -162,7 +162,7 @@ export default function PlaceOrderChartCard() {
 
     return () => {
       window.removeEventListener("resize", handleResize)
-
+      chart.removeSeries(mainSeries)
       chart.remove()
     }
   }, [candlestickPrice])
@@ -172,14 +172,6 @@ export default function PlaceOrderChartCard() {
     if (!chartRef.current) return
 
     const [chart, series] = chartRef.current
-
-    if (priceRefLineRef.current.length > 0) {
-      priceRefLineRef.current.forEach((line) => {
-        series.removePriceLine(line)
-      })
-    }
-
-    priceRefLineRef.current = []
 
     if (type === "limit" && diffPercentage !== 0) {
       priceRefLineRef.current.push(
@@ -228,6 +220,13 @@ export default function PlaceOrderChartCard() {
         })
       )
     }
+
+    return () => {
+      priceRefLineRef.current.forEach((line) => {
+        series.removePriceLine(line)
+      })
+      priceRefLineRef.current = []
+    }
   }, [
     effectiveMarketPrice,
     chartRef,
@@ -235,6 +234,7 @@ export default function PlaceOrderChartCard() {
     twapLimitLower,
     twapLimitUpper,
     type,
+    chartRef.current,
   ])
 
   return (

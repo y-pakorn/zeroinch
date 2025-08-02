@@ -40,7 +40,7 @@ export default function Home() {
           className="container min-h-screen flex-col space-y-4 py-8"
           style={
             {
-              "--main-width": "440px",
+              "--main-width": "400px",
             } as React.CSSProperties
           }
         >

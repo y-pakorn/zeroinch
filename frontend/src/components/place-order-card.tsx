@@ -434,10 +434,12 @@ export default function PlaceOrderCard() {
                   {!inversed ? quoteToken.symbol : baseToken.symbol}
                 </div>
               </div>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 {[
                   {
-                    show: ![0, 0.005, 0.01, 0.05, 0.1].includes(diffPercentage),
+                    show: ![0, 0.001, 0.0025, 0.005, 0.01, 0.05].includes(
+                      diffPercentage
+                    ),
                     label: formatter.percentage(
                       !inversed ? diffPercentage : -diffPercentage,
                       formatter.decimalsTight(diffPercentage)
@@ -447,6 +449,14 @@ export default function PlaceOrderCard() {
                   {
                     label: "Market",
                     value: 0,
+                  },
+                  {
+                    label: `${!inversed ? "+0.1%" : "-0.1%"}`,
+                    value: 0.001,
+                  },
+                  {
+                    label: `${!inversed ? "+0.25%" : "-0.25%"}`,
+                    value: 0.0025,
                   },
                   {
                     label: `${!inversed ? "+0.5%" : "-0.5%"}`,
@@ -459,10 +469,6 @@ export default function PlaceOrderCard() {
                   {
                     label: `${!inversed ? "+5%" : "-5%"}`,
                     value: 0.05,
-                  },
-                  {
-                    label: `${!inversed ? "+10%" : "-10%"}`,
-                    value: 0.1,
                   },
                 ].map((item) =>
                   item.show !== undefined && !item.show ? null : (
@@ -531,36 +537,46 @@ export default function PlaceOrderCard() {
                 Price Protection
               </div>
               <div className="flex-1" />
-              {[
-                {
-                  label: "0.5%",
-                  value: 0.005,
-                },
-                {
-                  label: "1%",
-                  value: 0.01,
-                },
-                {
-                  label: "5%",
-                  value: 0.05,
-                },
-                {
-                  label: "10%",
-                  value: 0.1,
-                },
-              ].map((item) => (
-                <Button
-                  type="button"
-                  key={item.label}
-                  variant={
-                    diffPercentage === item.value ? "default" : "outline"
-                  }
-                  size="xs"
-                  onClick={() => setPresetDiffPercentage(item.value)}
-                >
-                  {item.label}
-                </Button>
-              ))}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  {
+                    label: "0.1%",
+                    value: 0.001,
+                  },
+                  {
+                    label: "0.25%",
+                    value: 0.0025,
+                  },
+                  {
+                    label: "0.5%",
+                    value: 0.005,
+                  },
+                  {
+                    label: "1%",
+                    value: 0.01,
+                  },
+                  {
+                    label: "5%",
+                    value: 0.05,
+                  },
+                  {
+                    label: "10%",
+                    value: 0.1,
+                  },
+                ].map((item) => (
+                  <Button
+                    type="button"
+                    key={item.label}
+                    variant={
+                      diffPercentage === item.value ? "default" : "outline"
+                    }
+                    size="xs"
+                    onClick={() => setPresetDiffPercentage(item.value)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
           <Card>
