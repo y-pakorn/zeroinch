@@ -26,6 +26,7 @@ export const useOrders = () => {
         }
       }
     })
+    orderHistory.reverse()
     return {
       limitOrders,
       orderHistory,
