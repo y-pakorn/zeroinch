@@ -30,14 +30,3 @@ export const web3Config = getDefaultConfig({
 })
 
 export const connections = getConnections(web3Config)
-
-export const client = createPublicClient({
-  chain: chain,
-  transport: http(),
-  batch: {
-    multicall: {
-      batchSize: 16_384,
-      wait: 50,
-    },
-  },
-})

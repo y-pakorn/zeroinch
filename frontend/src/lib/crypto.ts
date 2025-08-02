@@ -3,8 +3,8 @@ import _ from "lodash"
 import { poseidon2, poseidon3 } from "poseidon-lite"
 import { fromBytes, fromHex, Hex, hexToBigInt, pad, padHex, toHex } from "viem"
 
+import { client } from "@/config/chain"
 import { contracts } from "@/config/contract"
-import { client } from "@/config/web3"
 import { ICombinedSecret, IPrimitiveNote } from "@/types"
 
 const n =
@@ -15,12 +15,13 @@ export const zeroBytes =
 
 export const hashTwoNormalized = (h: Hex) => {
   const normalizedH = hexToBigInt(h) % n
-  return toHex(poseidon2([normalizedH, normalizedH]))
+  return toHex(poseidon2([normalizedH, normalizedH]), { size: 32 })
 }
 
 export const getRandomHex = () => {
   return toHex(
-    fromBytes(crypto.getRandomValues(new Uint8Array(32)), "bigint") % n
+    fromBytes(crypto.getRandomValues(new Uint8Array(32)), "bigint") % n,
+    { size: 32 }
   )
 }
 
@@ -97,7 +98,8 @@ export const testCrypto = async () => {}
 
 export const zeroMerkleTree = async () => {
   const tree = new MerkleTree(10, [], {
-    hashFunction: (left, right) => toHex(poseidon2([left, right])),
+    hashFunction: (left, right) =>
+      toHex(poseidon2([left, right]), { size: 32 }),
     zeroElement: "0x00",
   })
 

@@ -61,6 +61,7 @@ export interface ILimitOrder {
   oneInchOrder: LimitOrder
   cancelPreImage: Hex
   cancelHash: Hex
+  txHash: Hex
   filled?: {
     at: number
     noteHash: Hex

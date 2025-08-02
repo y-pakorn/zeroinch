@@ -1,5 +1,6 @@
 import {
   createContext,
+  ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -21,11 +22,14 @@ import {
 } from "@1inch/limit-order-sdk"
 import BigNumber from "bignumber.js"
 import _ from "lodash"
+import { Loader2 } from "lucide-react"
 import { useFormContext } from "react-hook-form"
 import { toast } from "sonner"
 import {
   Address,
+  decodeEventLog,
   encodeAbiParameters,
+  encodeFunctionData,
   Hex,
   keccak256,
   parseAbiParameter,
@@ -33,7 +37,7 @@ import {
 } from "viem"
 import { serialize, usePublicClient, useWriteContract } from "wagmi"
 
-import { chain } from "@/config/chain"
+import { chain, explorer } from "@/config/chain"
 import { contracts } from "@/config/contract"
 import { tokens } from "@/config/token"
 import {
@@ -63,7 +67,7 @@ export const PlaceOrderContext = createContext<{
   baseToken: IToken
   quoteToken: IToken
   submit: {
-    label: string
+    label: ReactNode
     isLoading: boolean
     isDisabled: boolean
     isError: boolean
@@ -80,7 +84,7 @@ export const PlaceOrderProvider = ({
     watch,
     setValue,
     formState: { errors, isValid, isSubmitting },
-    reset,
+    resetField,
   } = useFormContext<PlaceOrderFormData>()
   const {
     baseTokenA,
@@ -144,31 +148,59 @@ export const PlaceOrderProvider = ({
     setValue,
   ])
 
+  const internalBalances = useInternalBalances()
+
   const submit = useMemo(() => {
     const hasErrors = Object.keys(errors).length > 0
     const firstErrorMsg = Object.values(errors)[0]?.message || "Error"
+    const isInsufficientBalance =
+      !internalBalances[baseTokenA] ||
+      internalBalances[baseTokenA] < baseTokenAmount
 
     return {
-      isError: hasErrors,
-      label: isSubmitting
-        ? "Placing Order..."
-        : hasErrors
-          ? firstErrorMsg
-          : "Place Order",
+      isError: hasErrors || isInsufficientBalance,
+      label: isSubmitting ? (
+        <>
+          Placing Order... <Loader2 className="animate-spin" />
+        </>
+      ) : hasErrors ? (
+        firstErrorMsg
+      ) : isInsufficientBalance ? (
+        "Insufficient balance :("
+      ) : (
+        "Place Order"
+      ),
       isLoading: isSubmitting,
-      isDisabled:
-        hasErrors || isSubmitting || !baseTokenAmount || !quoteTokenAmount,
+      isDisabled: hasErrors || isSubmitting || isInsufficientBalance,
     }
-  }, [errors, isSubmitting, isValid])
+  }, [
+    errors,
+    isSubmitting,
+    isValid,
+    baseTokenAmount,
+    baseTokenA,
+    internalBalances,
+  ])
 
-  const internalBalances = useInternalBalances()
-  const { calculateNotes } = useAccountStore()
+  const { calculateNotes, addNote, removeNotes, addOrder } = useAccountStore()
 
   const client = usePublicClient()
-  const { writeContractAsync } = useWriteContract()
 
-  const handleSubmit = async (data: PlaceOrderFormData) => {
-    if (data.type === "twap") {
+  const handleSubmit = async ({
+    baseTokenA,
+    baseTokenAmount,
+    diffPercentage,
+    expiry,
+    inversed,
+    isFixedRate,
+    numberOfParts,
+    quoteTokenA,
+    quoteTokenAmount,
+    rate,
+    selectedInterval,
+    type,
+  }: PlaceOrderFormData) => {
+    if (type === "twap") {
       toast.error("TWAP is not supported yet")
       return
     }
@@ -198,7 +230,7 @@ export const PlaceOrderProvider = ({
       makingAmount,
       takingAmount,
     }
-    const expiredAt = Date.now() + 1000 * 60 * 60 * data.expiry // expiry in hours
+    const expiredAt = Date.now() + 1000 * 60 * 60 * expiry // expiry in hours
 
     const makerTraits = MakerTraits.default()
       .withExpiration(BigInt(Math.floor(expiredAt / 1000)))
@@ -242,6 +274,7 @@ export const PlaceOrderProvider = ({
         nonce: getRandomHex(),
         secret: getRandomHex(),
       },
+      txHash: zeroBytes,
       cancelPreImage,
       cancelHash,
       oneInchOrder: oneInchOrder,
@@ -257,6 +290,11 @@ export const PlaceOrderProvider = ({
 
     if (calculatedNotes.notes.length > 2) {
       toast.error("Sorry, too many notes :(")
+      return
+    }
+
+    if (calculatedNotes.notes.length === 0) {
+      toast.error("Not enough notes to calculate order")
       return
     }
 
@@ -311,7 +349,7 @@ export const PlaceOrderProvider = ({
       ? getNoteHash(outputNote2)
       : zeroBytes
 
-    const proof = await prove({
+    const proofPromise = prove({
       merkle_root: merkleRoot,
       included_asset: [baseTokenA, quoteTokenA],
       order_hash: normalizedOrderHash,
@@ -333,11 +371,13 @@ export const PlaceOrderProvider = ({
       input_note: [inputNote1, inputNote2],
       output_note: [outputNote1, outputNote2],
     })
-
-    console.log(proof)
-
-    const tx = await writeContractAsync({
-      address: contracts.zeroinch.address,
+    toast.promise(proofPromise, {
+      loading: "Generating ZK proof...",
+      success: "ZK proof generated",
+      error: "Failed to generate ZK proof",
+    })
+    const proof = await proofPromise
+    const txData = encodeFunctionData({
       abi: contracts.zeroinch.abi,
       functionName: "order",
       args: [
@@ -361,22 +401,90 @@ export const PlaceOrderProvider = ({
       ],
     })
 
-    const receipt = await client.waitForTransactionReceipt({
-      hash: tx,
+    const relayTxPromise = fetch("/api/relay", {
+      method: "POST",
+      body: JSON.stringify({ txData }),
+    }).then((res) => res.json())
+    toast.promise(relayTxPromise, {
+      loading: "Submitting order to relayer...",
+      success: "Order submitted",
     })
+    const { tx, message } = (await relayTxPromise) as {
+      tx: Hex
+      message: string
+    }
 
-    if (receipt.status === "reverted") {
-      toast.error("Order submission failed", {
-        description: receipt.transactionHash,
+    // if message is not empty, it means the relayer failed to relay the transaction
+    if (message) {
+      toast.error("Failed to relay transaction", {
+        description: message,
       })
       return
     }
 
-    toast.success("Order submitted", {
-      description: receipt.transactionHash,
+    const txReceiptPromise = client.waitForTransactionReceipt({
+      hash: tx,
     })
+    toast.promise(txReceiptPromise, {
+      loading: "Waiting for transaction receipt...",
+      success: "Transaction successful",
+      error: "Failed to submit order",
+    })
+    const txReceipt = await txReceiptPromise
 
-    // reset()
+    if (txReceipt.status === "reverted") {
+      toast.error("Failed to submit order", {
+        description: txReceipt.transactionHash,
+        action: {
+          label: "View on Etherscan",
+          onClick: () => {
+            window.open(`${explorer}/tx/${txReceipt.transactionHash}`, "_blank")
+          },
+        },
+      })
+      return
+    }
+
+    order.txHash = txReceipt.transactionHash
+
+    for (const log of txReceipt.logs) {
+      try {
+        const decodedLog = decodeEventLog({
+          abi: contracts.zeroinch.abi,
+          data: log.data,
+          topics: log.topics,
+        })
+        if (decodedLog.eventName === "NewLeaf") {
+          // find output note that matches the decoded log
+          const outputNote = outputNotes.find(
+            (note) => getNoteHash(note) === decodedLog.args.noteHash
+          )
+          console.log("Inserted leaf note", decodedLog.args.noteHash)
+          if (outputNote) {
+            const leafIndex = Number(decodedLog.args.insertedIndex)
+            const { note } = addNote(
+              outputNote.asset_address,
+              outputNote.asset_balance,
+              leafIndex,
+              outputNote.combinedSecret
+            )
+            console.log("Added note", note.hash)
+          }
+        }
+      } catch (error) {}
+    }
+
+    const removedNoteHashes = calculatedNotes.notes.map((note) => note.hash)
+    removeNotes(removedNoteHashes)
+    console.log("Removed notes", removedNoteHashes)
+
+    addOrder(order)
+
+    setValue("baseTokenAmount", 0)
+    setValue("quoteTokenAmount", 0)
+    setValue("diffPercentage", 0)
+    setValue("rate", 0)
+    setValue("isFixedRate", false)
   }
 
   return (

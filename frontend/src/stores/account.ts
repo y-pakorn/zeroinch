@@ -24,7 +24,9 @@ interface IAccountStore {
     balance: bigint,
     leafIndex: number,
     combinedSecret: ICombinedSecret
-  ) => void
+  ) => {
+    note: INote
+  }
   removeNotes: (noteHashes: Hex[]) => void
   calculateNotes: (
     tokenA: Address,
@@ -71,6 +73,7 @@ export const useAccountStore = create<IAccountStore>()(
         console.log("Inserting note with hash", note.hash)
         const account = get().account
         set({ account: { ...account, notes: [...account.notes, note] } })
+        return { note }
       },
       removeNotes: (noteHashes: Hex[]) => {
         const account = get().account

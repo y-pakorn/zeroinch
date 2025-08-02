@@ -15,11 +15,7 @@ export const useOrders = () => {
 
     orders.forEach((order) => {
       if (order.type === "limit") {
-        if (
-          order.expiredAt < Date.now() ||
-          !!order.claimed ||
-          !!order.cancelled
-        ) {
+        if (order.expiredAt < Date.now() || !!order.cancelled) {
           orderHistory.push(order)
         } else {
           limitOrders.push(order)

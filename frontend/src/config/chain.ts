@@ -1,6 +1,19 @@
-import { defineChain } from "viem"
+import { createPublicClient, defineChain, http } from "viem"
 import { optimism } from "viem/chains"
 
 export const chain = defineChain({
   ...optimism,
 })
+
+export const client = createPublicClient({
+  chain: chain,
+  transport: http(),
+  batch: {
+    multicall: {
+      batchSize: 16_384,
+      wait: 50,
+    },
+  },
+})
+
+export const explorer = chain.blockExplorers.default.url
