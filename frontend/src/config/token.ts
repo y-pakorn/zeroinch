@@ -4,6 +4,7 @@ import { IToken } from "@/types"
 
 export const WETH = "0x4200000000000000000000000000000000000006"
 export const USDC = "0x0b2c639c533813f4aa9d7837caf62653d097ff85"
+export const USDT = "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58"
 
 export const tokens: Record<Address, IToken> = {
   // "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": {

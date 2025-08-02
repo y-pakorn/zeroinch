@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { FormProvider, useForm } from "react-hook-form"
 
-import { USDC, WETH } from "@/config/token"
+import { USDC, USDT } from "@/config/token"
 import { PlaceOrderFormData, placeOrderFormSchema } from "@/lib/schema"
 import Navbar from "@/components/navbar"
 import OrderListCard from "@/components/order-list-card"
@@ -19,9 +19,9 @@ export default function Home() {
     reValidateMode: "onChange",
     defaultValues: {
       type: "limit" as const,
-      baseTokenA: WETH,
+      baseTokenA: USDC,
       baseTokenAmount: 0,
-      quoteTokenA: USDC,
+      quoteTokenA: USDT,
       quoteTokenAmount: 0,
       selectedInterval: 900,
       diffPercentage: 0,

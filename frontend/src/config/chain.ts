@@ -3,6 +3,7 @@ import { optimism } from "viem/chains"
 
 export const chain = defineChain({
   ...optimism,
+  name: "optimism",
 })
 
 export const client = createPublicClient({

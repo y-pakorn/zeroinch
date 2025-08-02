@@ -20,6 +20,7 @@ interface IAccountStore {
   account: IAccount
   addOrder: (order: IOrder) => void
   cancelOrder: (id: Hex, orderCacelParams: IOrder["cancelled"]) => void
+  fillOrder: (id: Hex, orderFillParams: IOrder["filled"]) => void
   addNote: (
     tokenA: Address,
     balance: bigint,
@@ -65,6 +66,22 @@ export const useAccountStore = create<IAccountStore>()(
               order.id === id
                 ? { ...order, cancelled: orderCacelParams }
                 : order
+            ),
+          },
+        })
+      },
+      fillOrder: (id: Hex, orderFillParams: IOrder["filled"]) => {
+        const account = get().account
+        const order = account.orders.find((order) => order.id === id)
+        if (!order) {
+          return
+        }
+        order.filled = orderFillParams
+        set({
+          account: {
+            ...account,
+            orders: account.orders.map((order) =>
+              order.id === id ? { ...order, filled: orderFillParams } : order
             ),
           },
         })

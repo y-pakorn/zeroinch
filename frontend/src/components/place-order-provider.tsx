@@ -9,11 +9,10 @@ import {
   useState,
 } from "react"
 import {
+  Extension,
   ExtensionBuilder,
-  FeeTakerExt,
   Interaction,
   LimitOrder,
-  LimitOrderWithFee,
   MakerTraits,
   Address as OneInchAddress,
   OrderInfoData,
@@ -237,7 +236,7 @@ export const PlaceOrderProvider = ({
       .disablePartialFills()
       .disableMultipleFills()
       .enablePostInteraction()
-      .enablePostInteraction()
+      .enablePreInteraction()
       .withExtension()
 
     const extension = new ExtensionBuilder()
@@ -277,7 +276,7 @@ export const PlaceOrderProvider = ({
       txHash: zeroBytes,
       cancelPreImage,
       cancelHash,
-      oneInchOrder: oneInchOrder,
+      oneInchOrder: [oneInchOrder.build(), extension.encode()],
       rate,
     }
 

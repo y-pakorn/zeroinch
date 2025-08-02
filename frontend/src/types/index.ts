@@ -1,4 +1,4 @@
-import { LimitOrder } from "@1inch/limit-order-sdk"
+import { Extension, LimitOrderV4Struct } from "@1inch/limit-order-sdk"
 import type { Address, Hex } from "viem"
 
 export interface IAccount {
@@ -58,7 +58,7 @@ export interface ILimitOrder {
   diffPercentage: number
   rate: number
   combinedSecret: ICombinedSecret
-  oneInchOrder: LimitOrder
+  oneInchOrder: [LimitOrderV4Struct, string]
   cancelPreImage: Hex
   cancelHash: Hex
   txHash: Hex
