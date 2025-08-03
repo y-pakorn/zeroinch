@@ -147,7 +147,7 @@ export default function OrderListCard() {
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`${explorer}/tx/${order.txHash}`}
+                        href={`${explorer}/tx/${txHash}`}
                         target="_blank"
                         className={cn(
                           "text-muted-foreground flex items-center gap-1 font-mono font-medium",
