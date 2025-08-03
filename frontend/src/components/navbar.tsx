@@ -8,6 +8,7 @@ import { Button } from "./ui/button"
 export default function Navbar() {
   return (
     <nav className="flex items-center gap-2">
+      <img src="/logo.webp" alt="zeroinch" className="size-9" />
       <div className="font-serif text-3xl font-medium">zeroinch</div>
       <div className="flex-1" />
       <ConnectWalletButton />

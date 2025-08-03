@@ -11,6 +11,6 @@ export const siteConfig = {
     author: "ZeroInch",
   },
   twitter: "",
-  favicon: "/favicon.ico",
-  ogImage: "",
+  favicon: "/logo.webp",
+  ogImage: "https://i.ibb.co/bVzmqc0/og.webp",
 }

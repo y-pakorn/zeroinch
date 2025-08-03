@@ -30,7 +30,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 
 export function ConnectWalletButton() {
   const { address, isConnecting } = useAccount()
@@ -64,16 +63,16 @@ export function ConnectWalletButton() {
     )
   }
 
-  const balanceFormatted = !balance
-    ? undefined
-    : new BigNumber(balance.value).shiftedBy(-balance.decimals).toNumber()
+  const balanceFormatted = balance
+    ? new BigNumber(balance.value).shiftedBy(-balance.decimals).toNumber()
+    : undefined
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
           <span className="text-muted-foreground">Connected</span>{" "}
-          {!balanceFormatted ? (
+          {balanceFormatted === undefined ? (
             <Loader2 className="animate-spin" />
           ) : (
             <>
