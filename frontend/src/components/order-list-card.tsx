@@ -290,7 +290,10 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
   const [shouldRetry, setShouldRetry] = useState(true)
   const [isFilling, setIsFilling] = useState(false)
   const fillOrder = useMutation({
+    mutationKey: ["fill-order", order.id],
+    retry: false,
     mutationFn: async () => {
+      console.log("Filling order inside")
       const { tx, message, noRetry } = await fetch("/api/fill", {
         method: "POST",
         body: JSON.stringify({
@@ -317,7 +320,6 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
         toast.error("Failed to fill order", {
           description: "Transaction reverted",
         })
-        setIsFilling(false)
         return
       }
 
@@ -360,23 +362,23 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
         leafIndex: newInsertedIndex,
         actualQuoteTokenAmount: note.balance,
       })
-      setIsFilling(false)
       toast.success("Order filled", {
         description: `The ${baseToken.symbol} > ${quoteToken.symbol} trade was successful and has been filled.`,
       })
     },
+    onSettled: () => {
+      // always reset the filling state
+      setIsFilling(false)
+    },
   })
 
   useEffect(() => {
-    if (shouldRetry) {
-      // auto run every 25s
+    fillOrder.mutate()
+    const interval = setInterval(() => {
       fillOrder.mutate()
-      const interval = setInterval(() => {
-        fillOrder.mutate()
-      }, 25000)
-      return () => clearInterval(interval)
-    }
-  }, [shouldRetry])
+    }, 25000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <TableRow key={order.id}>
@@ -443,9 +445,12 @@ function LimitOrderRow({ order }: { order: ILimitOrder }) {
           variant="outline"
           size="sm"
           onClick={() => fillOrder.mutate()}
-          disabled={fillOrder.isPending}
+          disabled={fillOrder.isPending || isFilling}
         >
-          Try Fill {fillOrder.isPending && <Loader2 className="animate-spin" />}
+          Try Fill{" "}
+          {(fillOrder.isPending || isFilling) && (
+            <Loader2 className="animate-spin" />
+          )}
         </Button>
       </TableCell>
     </TableRow>
